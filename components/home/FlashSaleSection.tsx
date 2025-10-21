@@ -12,58 +12,10 @@ import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { addToCart } from '@/services/cartService';
+import { flashSaleProducts } from '@/constants/mockData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.45;
-
-// Mock data - replace with API call
-const flashSaleProducts: Product[] = [
-  {
-    id: 1,
-    name: 'Gaming Laptop',
-    description: 'High-performance gaming laptop',
-    price: 25000000,
-    imageUrl: 'https://via.placeholder.com/400x400/FF6B6B/FFFFFF?text=Gaming+Laptop',
-    category: 'Electronics',
-    stock: 10,
-    rating: 4.8,
-    reviews: 256,
-  },
-  {
-    id: 2,
-    name: 'Wireless Headphones',
-    description: 'Noise-cancelling headphones',
-    price: 3500000,
-    imageUrl: 'https://via.placeholder.com/400x400/4ECDC4/FFFFFF?text=Headphones',
-    category: 'Electronics',
-    stock: 25,
-    rating: 4.6,
-    reviews: 189,
-  },
-  {
-    id: 3,
-    name: 'Smart Watch',
-    description: 'Fitness tracking smartwatch',
-    price: 5000000,
-    imageUrl: 'https://via.placeholder.com/400x400/45B7D1/FFFFFF?text=Smart+Watch',
-    category: 'Electronics',
-    stock: 15,
-    rating: 4.7,
-    reviews: 342,
-  },
-  {
-    id: 4,
-    name: 'Mechanical Keyboard',
-    description: 'RGB mechanical keyboard',
-    price: 2000000,
-    imageUrl: 'https://via.placeholder.com/400x400/96CEB4/FFFFFF?text=Keyboard',
-    category: 'Electronics',
-    stock: 30,
-    rating: 4.5,
-    reviews: 128,
-  },
-];
 
 export default function FlashSaleSection() {
   const router = useRouter();
@@ -128,7 +80,7 @@ export default function FlashSaleSection() {
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <View style={[styles.indicator, { backgroundColor: '#FF6B6B' }]} />
-          <Text style={[styles.subtitle, { color: '#FF6B6B' }]}>Today's</Text>
+          <Text style={[styles.subtitle, { color: '#FF6B6B' }]}>Today&apos;s</Text>
         </View>
         <Text style={[styles.title, { color: colors.text }]}>Flash Sales</Text>
       </View>

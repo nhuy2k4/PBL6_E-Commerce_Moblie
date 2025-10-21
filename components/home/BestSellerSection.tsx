@@ -12,57 +12,10 @@ import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { bestSellerProducts } from '@/constants/mockData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.45;
-
-// Mock data - replace with API call
-const bestSellerProducts: Product[] = [
-  {
-    id: 5,
-    name: 'iPhone 15 Pro',
-    description: 'Latest iPhone model',
-    price: 29000000,
-    imageUrl: 'https://via.placeholder.com/400x400/007AFF/FFFFFF?text=iPhone+15',
-    category: 'Electronics',
-    stock: 20,
-    rating: 4.9,
-    reviews: 512,
-  },
-  {
-    id: 6,
-    name: 'AirPods Pro',
-    description: 'Wireless earbuds',
-    price: 6000000,
-    imageUrl: 'https://via.placeholder.com/400x400/34C759/FFFFFF?text=AirPods',
-    category: 'Electronics',
-    stock: 50,
-    rating: 4.8,
-    reviews: 423,
-  },
-  {
-    id: 7,
-    name: 'iPad Air',
-    description: 'Powerful tablet',
-    price: 15000000,
-    imageUrl: 'https://via.placeholder.com/400x400/FF9500/FFFFFF?text=iPad+Air',
-    category: 'Electronics',
-    stock: 15,
-    rating: 4.7,
-    reviews: 298,
-  },
-  {
-    id: 8,
-    name: 'MacBook Air M2',
-    description: 'Thin and light laptop',
-    price: 28000000,
-    imageUrl: 'https://via.placeholder.com/400x400/5856D6/FFFFFF?text=MacBook',
-    category: 'Electronics',
-    stock: 10,
-    rating: 4.9,
-    reviews: 367,
-  },
-];
 
 export default function BestSellerSection() {
   const router = useRouter();

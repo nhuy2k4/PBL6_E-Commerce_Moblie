@@ -1,29 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   RefreshControl,
   Text,
-  TouchableOpacity,
 } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
 import { Colors } from '@/constants/theme';
-import PromoBanner from '@/components/home/PromoBanner';
-import FlashSaleSection from '@/components/home/FlashSaleSection';
-import BestSellerSection from '@/components/home/BestSellerSection';
-import NewArrivalSection from '@/components/home/NewArrivalSection';
-import ProductExplorer from '@/components/home/ProductExplorer';
-import ServiceFeatures from '@/components/home/ServiceFeatures';
-import CategoryList from '@/components/home/CategoryList';
+import HomeHeader from '../../components/home/HomeHeader';
+import PromoBanner from '../../components/home/PromoBanner';
+import FlashSaleSection from '../../components/home/FlashSaleSection';
+import BestSellerSection from '../../components/home/BestSellerSection';
+import NewArrivalSection from '../../components/home/NewArrivalSection';
+import ProductExplorer from '../../components/home/ProductExplorer';
+import ServiceFeatures from '../../components/home/ServiceFeatures';
+import CategoryList from '../../components/home/CategoryList';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/context/AuthContext';
 
 export default function HomeScreen() {
-  const { user } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const [refreshing, setRefreshing] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  
+  // Safely use auth context with error handling
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (error) {
+    console.log('Auth context not available:', error);
+  }
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -35,6 +42,8 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header with Search, Cart, Message */}
+      <HomeHeader />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -50,14 +59,14 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Promo Banner */}
-        <View style={styles.section}>
-          <PromoBanner />
-        </View>
-
         {/* Category List */}
         <View style={styles.section}>
           <CategoryList />
+        </View>
+
+        {/* Promo Banner */}
+        <View style={styles.section}>
+          <PromoBanner />
         </View>
 
         {/* Flash Sale Section */}

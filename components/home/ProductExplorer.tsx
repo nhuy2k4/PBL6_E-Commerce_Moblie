@@ -12,57 +12,10 @@ import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { explorerProducts } from '@/constants/mockData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.45;
-
-// Mock data - replace with API call
-const explorerProducts: Product[] = [
-  {
-    id: 13,
-    name: 'Logitech MX Master 3',
-    description: 'Wireless mouse',
-    price: 2500000,
-    imageUrl: 'https://via.placeholder.com/400x400/FF9500/FFFFFF?text=MX+Master',
-    category: 'Accessories',
-    stock: 35,
-    rating: 4.8,
-    reviews: 412,
-  },
-  {
-    id: 14,
-    name: 'Dell UltraSharp 27"',
-    description: '4K Monitor',
-    price: 12000000,
-    imageUrl: 'https://via.placeholder.com/400x400/5856D6/FFFFFF?text=Monitor',
-    category: 'Electronics',
-    stock: 15,
-    rating: 4.7,
-    reviews: 189,
-  },
-  {
-    id: 15,
-    name: 'Razer BlackWidow V3',
-    description: 'Mechanical keyboard',
-    price: 3500000,
-    imageUrl: 'https://via.placeholder.com/400x400/30D158/FFFFFF?text=Keyboard',
-    category: 'Accessories',
-    stock: 28,
-    rating: 4.6,
-    reviews: 267,
-  },
-  {
-    id: 16,
-    name: 'Webcam 4K Pro',
-    description: 'Professional webcam',
-    price: 4000000,
-    imageUrl: 'https://via.placeholder.com/400x400/FF375F/FFFFFF?text=Webcam',
-    category: 'Electronics',
-    stock: 22,
-    rating: 4.5,
-    reviews: 134,
-  },
-];
 
 export default function ProductExplorer() {
   const router = useRouter();

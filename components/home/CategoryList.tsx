@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Category } from '@/types';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -25,13 +24,13 @@ const categories: Category[] = [
 ];
 
 export default function CategoryList() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
   const handleCategoryPress = (category: Category) => {
     console.log('Category pressed:', category.name);
     // Navigate to category products
+    // router.push(`/category/${category.id}`);
   };
 
   const renderCategory = ({ item }: { item: Category }) => (

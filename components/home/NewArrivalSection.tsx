@@ -12,57 +12,10 @@ import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { newArrivalProducts } from '@/constants/mockData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.45;
-
-// Mock data - replace with API call
-const newArrivalProducts: Product[] = [
-  {
-    id: 9,
-    name: 'Sony WH-1000XM5',
-    description: 'Premium noise-cancelling',
-    price: 8000000,
-    imageUrl: 'https://via.placeholder.com/400x400/FF2D55/FFFFFF?text=Sony+XM5',
-    category: 'Electronics',
-    stock: 18,
-    rating: 4.8,
-    reviews: 145,
-  },
-  {
-    id: 10,
-    name: 'Samsung Galaxy S24',
-    description: 'Latest flagship phone',
-    price: 22000000,
-    imageUrl: 'https://via.placeholder.com/400x400/AF52DE/FFFFFF?text=Galaxy+S24',
-    category: 'Electronics',
-    stock: 25,
-    rating: 4.7,
-    reviews: 234,
-  },
-  {
-    id: 11,
-    name: 'DJI Mini 4 Pro',
-    description: 'Compact drone',
-    price: 18000000,
-    imageUrl: 'https://via.placeholder.com/400x400/32ADE6/FFFFFF?text=DJI+Mini',
-    category: 'Electronics',
-    stock: 12,
-    rating: 4.9,
-    reviews: 87,
-  },
-  {
-    id: 12,
-    name: 'GoPro Hero 12',
-    description: 'Action camera',
-    price: 9500000,
-    imageUrl: 'https://via.placeholder.com/400x400/00C7BE/FFFFFF?text=GoPro+12',
-    category: 'Electronics',
-    stock: 20,
-    rating: 4.6,
-    reviews: 156,
-  },
-];
 
 export default function NewArrivalSection() {
   const router = useRouter();
