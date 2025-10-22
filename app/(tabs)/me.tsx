@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/context/AuthContext';
@@ -55,6 +56,7 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
@@ -87,11 +89,10 @@ export default function ProfileScreen() {
             <View style={styles.profileInfo}>
               {user ? (
                 <>
-                  <Text style={styles.userName}>{user.name || 'User'}</Text>
-                  <Text style={styles.userEmail}>{user.email}</Text>
+                  <Text style={styles.userName}>{user.username || 'User'}</Text>
                 </>
               ) : (
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/auth/login')}>
                   <Text style={styles.loginText}>Đăng nhập / Đăng ký</Text>
                 </TouchableOpacity>
               )}

@@ -25,13 +25,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setCart(cartData);
     } catch (error) {
       console.error('Error fetching cart:', error);
+      // Set empty cart on error instead of leaving null
+      setCart({ items: [], total: 0 });
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshCart();
+    // Don't fetch cart on initial load, only when user is logged in
+    // refreshCart();
+    setIsLoading(false);
+    setCart({ items: [], total: 0 });
   }, []);
 
   const addToCart = async (productId: number, quantity: number = 1) => {

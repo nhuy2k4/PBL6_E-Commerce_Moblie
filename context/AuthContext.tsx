@@ -5,8 +5,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithFacebook: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -34,9 +35,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     try {
-      const { user: userData } = await authService.login({ email, password });
+      const { user: userData } = await authService.login({ username, password });
       setUser(userData);
     } catch (error) {
       console.error('Login error:', error);
@@ -44,11 +45,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const loginWithGoogle = async (idToken: string) => {
     try {
-      await authService.register({ email, password, name });
+      const { user: userData } = await authService.loginWithGoogle(idToken);
+      setUser(userData);
     } catch (error) {
-      console.error('Register error:', error);
+      console.error('Google login error:', error);
+      throw error;
+    }
+  };
+
+  const loginWithFacebook = async (accessToken: string) => {
+    try {
+      const { user: userData } = await authService.loginWithFacebook(accessToken);
+      setUser(userData);
+    } catch (error) {
+      console.error('Facebook login error:', error);
       throw error;
     }
   };
@@ -70,7 +82,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         isLoading,
         login,
-        register,
+        loginWithGoogle,
+        loginWithFacebook,
         logout,
       }}
     >

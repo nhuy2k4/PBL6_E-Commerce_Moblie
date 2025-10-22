@@ -43,15 +43,6 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Welcome Header */}
-        {user && (
-          <View style={styles.welcomeContainer}>
-            <Text style={[styles.welcomeText, { color: colors.text }]}>
-              Xin chào, {user.name || user.email}!
-            </Text>
-          </View>
-        )}
-
         {/* Category List */}
         <View style={styles.section}>
           <CategoryList />

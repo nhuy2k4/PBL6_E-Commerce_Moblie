@@ -37,18 +37,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="home"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
     </Tabs>
   );
 }
