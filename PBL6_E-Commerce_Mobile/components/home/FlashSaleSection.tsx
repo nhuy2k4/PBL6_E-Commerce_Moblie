@@ -106,7 +106,10 @@ export default function FlashSaleSection() {
     </View>
   );
 
-  console.log('FlashSaleSection products:', products);
+  // Chỉ log khi products thay đổi
+  useEffect(() => {
+    console.log('FlashSaleSection products:', products);
+  }, [products]);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with See All */}

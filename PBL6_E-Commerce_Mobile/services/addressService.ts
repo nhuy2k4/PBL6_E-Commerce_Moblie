@@ -25,19 +25,44 @@ export async function getWards(districtCode) {
 // Shared address service
 import type { Address } from '../types';
 
-export async function getAddresses(userId: number): Promise<Address[]> {
-  // TODO: Replace with real API call
-  return [];
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Đổi thành URL ngrok public (ví dụ: https://abc123.ngrok.io)
+const BACKEND_API = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev'; // TODO: Thay bằng domain ngrok thật của bạn
+
+// Lấy danh sách địa chỉ từ API backend (chuẩn hóa giống web)
+export async function getAddresses(): Promise<Address[]> {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const res = await fetch(`${BACKEND_API}/api/me/addresses`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('getAddresses API error:', res.status, text);
+      throw new Error(`Failed to fetch addresses: ${res.status} ${text}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('getAddresses exception:', err);
+    throw err;
+  }
 }
 
-export async function addAddress(userId: number, address: Address): Promise<void> {
-  // TODO: Replace with real API call
+
+export async function addAddress(address: Address): Promise<void> {
+  // TODO: Implement POST /api/me/addresses
 }
 
-export async function updateAddress(userId: number, address: Address): Promise<void> {
-  // TODO: Replace with real API call
+
+export async function updateAddress(address: Address): Promise<void> {
+  // TODO: Implement PUT /api/me/addresses/{id}
 }
 
-export async function deleteAddress(userId: number, addressId: number): Promise<void> {
-  // TODO: Replace with real API call
+
+export async function deleteAddress(addressId: number): Promise<void> {
+  // TODO: Implement DELETE /api/me/addresses/{id}
 }

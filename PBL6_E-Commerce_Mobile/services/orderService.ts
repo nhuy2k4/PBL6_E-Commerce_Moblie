@@ -108,6 +108,75 @@ export async function createMoMoPayment(paymentData: {
 }
 
 /**
+ * Get available GHN shipping services
+ */
+export async function getAvailableServices(data: {
+  shopId: number;
+  addressId: number;
+  cartItemIds: number[];
+}): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(API_ENDPOINTS.CHECKOUT.AVAILABLE_SERVICES), {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    console.log('✅ getAvailableServices response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Error fetching available services:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate GHN shipping fee
+ */
+export async function calculateShippingFee(data: {
+  shopId: number;
+  addressId: number;
+  serviceId: number;
+  serviceTypeId: number;
+  cartItemIds: number[];
+}): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(API_ENDPOINTS.CHECKOUT.CALCULATE_FEE), {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    console.log('✅ calculateShippingFee response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Error calculating shipping fee:', error);
+    throw error;
+  }
+}
+
+/**
+ * Confirm checkout and create order(s)
+ */
+export async function confirmCheckout(data: {
+  shopId: number;
+  addressId: number;
+  serviceId: number;
+  serviceTypeId: number;
+  cartItemIds: number[];
+  paymentMethod: string;
+  note?: string;
+}): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(API_ENDPOINTS.CHECKOUT.CONFIRM), {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    console.log('✅ confirmCheckout response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Error confirming checkout:', error);
+    throw error;
+  }
+}
+
+/**
  * Get orders by status
  */
 export async function getOrdersByStatus(status: string): Promise<any> {

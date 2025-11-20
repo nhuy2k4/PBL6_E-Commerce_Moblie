@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   Text,
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 import { Colors } from '@/styles/theme';
 import HomeHeader from '@/components/home/HomeHeader';
 import PromoBanner from '@/components/home/PromoBanner';
@@ -19,10 +20,17 @@ import CategoryList from '@/components/home/CategoryList';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, isLoading]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -32,8 +40,14 @@ export default function HomeScreen() {
     }, 1000);
   }, []);
 
+  // Nếu đang kiểm tra đăng nhập thì không render gì
+  if (isLoading) return null;
+
+  // Nếu chưa đăng nhập thì sẽ bị redirect, không render Home
+  if (!user) return null;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with Search, Cart, Message */}
       <HomeHeader />
       

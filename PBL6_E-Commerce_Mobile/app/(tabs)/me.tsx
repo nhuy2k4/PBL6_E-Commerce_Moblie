@@ -106,8 +106,14 @@ export default function ProfileScreen() {
             <TouchableOpacity
               key={item.id}
               style={[styles.menuItem, { borderBottomColor: colors.icon + '20' }]}
+              onPress={() => {
+                if (item.id === 'orders') {
+                  router.push('/customer/OrderListPage');
+                }
+                // Có thể thêm điều hướng cho các menu khác ở đây
+              }}
             >
-              <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '10' }]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '10' }]}> 
                 <Ionicons name={item.icon as any} size={24} color={colors.tint} />
               </View>
               <View style={styles.menuContent}>

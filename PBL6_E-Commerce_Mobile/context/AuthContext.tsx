@@ -31,12 +31,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (token) {
           // Try to get user info from API
           const userData = await getCurrentUser(token);
-          setUser(userData);
+          console.log('DEBUG getCurrentUser result:', userData);
+          // Only set user if userData is valid (has id)
+          if (userData && userData.id) {
+            setUser(userData);
+          } else {
+            setUser(null);
+            await AsyncStorage.removeItem('token');
+          }
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error checking auth:', error);
         // Clear invalid token
         await AsyncStorage.removeItem('token');
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -64,14 +74,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginWithGoogle = async (idToken: string) => {
     // Gọi API xác thực Google ở component, truyền accessToken vào đây
     await AsyncStorage.setItem('token', idToken);
-    setUser({ id: 0, username: '', email: '', role: 'BUYER' }); // TODO: Lấy user thực tế từ backend
+    // TODO: Lấy user thực tế từ backend bằng idToken, không hardcode user
+    setUser(null);
     await refreshCartOnLogin.refresh();
   };
 
   const loginWithFacebook = async (accessToken: string) => {
     // Gọi API xác thực Facebook ở component, truyền accessToken vào đây
     await AsyncStorage.setItem('token', accessToken);
-    setUser({ id: 0, username: '', email: '', role: 'BUYER' }); // TODO: Lấy user thực tế từ backend
+    // TODO: Lấy user thực tế từ backend bằng accessToken, không hardcode user
+    setUser(null);
     await refreshCartOnLogin.refresh();
   };
 

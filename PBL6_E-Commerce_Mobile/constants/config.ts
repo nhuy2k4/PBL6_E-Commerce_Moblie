@@ -70,6 +70,20 @@ export const API_ENDPOINTS = {
     CANCEL: (orderId: number) => `orders/${orderId}/cancel`,
   },
   
+  // Checkout with GHN
+  CHECKOUT: {
+    AVAILABLE_SERVICES: 'checkout/available-services',
+    CALCULATE_FEE: 'checkout/calculate-fee',
+    CONFIRM: 'checkout/confirm',
+  },
+  
+  // Payment
+  PAYMENT: {
+    MOMO_CREATE: 'payment/momo/create',
+    MOMO_VERIFY: 'payment/momo/verify',
+    WALLET_WITHDRAW: 'wallet/withdraw',
+  },
+  
   // Security
   SECURITY: {
     LOGIN_HISTORY: 'user/login-history',
