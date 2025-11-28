@@ -26,10 +26,13 @@ const OrderListPage = () => {
   const loadOrders = async () => {
     setLoading(true);
     try {
+      console.log('🔄 Loading orders...');
       const data = await getMyOrders();
+      console.log('📦 Orders data received:', data);
       // Nếu API trả về { data: [...] } thì lấy data.data, nếu trả về mảng thì lấy luôn
       setOrders(Array.isArray(data) ? data : data?.data || []);
     } catch (e) {
+      console.error('❌ Load orders error:', e);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -41,7 +44,7 @@ const OrderListPage = () => {
     return orders.filter((o) => o.status === activeTab);
   };
 
-  const filteredOrders = filterOrders().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const filteredOrders = filterOrders().sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f6fa' }}>
@@ -75,10 +78,10 @@ const OrderListPage = () => {
               activeOpacity={0.85}
               onPress={() => router.push(`/customer/order-detail/${item.id}`)}
             >
-              <Text style={styles.orderCode}>Mã đơn: {item.code}</Text>
+              <Text style={styles.orderCode}>Mã đơn: #{item.id}</Text>
               <Text style={styles.orderStatus}>Trạng thái: {TABS.find(t => t.key === item.status)?.label || item.status}</Text>
-              <Text style={styles.orderTotal}>Tổng tiền: {item.total.toLocaleString('vi-VN')} đ</Text>
-              <Text style={styles.orderDate}>Ngày đặt: {new Date(item.createdAt).toLocaleString('vi-VN')}</Text>
+              <Text style={styles.orderTotal}>Tổng tiền: {(item.totalAmount || 0).toLocaleString('vi-VN')} đ</Text>
+              <Text style={styles.orderDate}>Ngày đặt: {new Date(item.createdAt || new Date()).toLocaleString('vi-VN')}</Text>
             </TouchableOpacity>
           )}
         />
