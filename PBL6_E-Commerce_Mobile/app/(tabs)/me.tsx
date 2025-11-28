@@ -59,6 +59,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  // Nút chuyển sang kênh Người Bán đặt ở trên cùng
+  const handleSwitchToSeller = () => {
+    router.push('/seller');
+  };
   
   let user = null;
   let logout = () => {};
@@ -72,25 +77,24 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <ScrollView>
         {/* Header with Profile Info */}
-        <View style={[styles.header, { backgroundColor: colors.tint }]}>
+        <View style={[styles.header, { backgroundColor: colors.tint }]}> 
           <View style={styles.profileSection}>
             <View style={styles.avatarContainer}>
-              {user ? (
-                <Text style={styles.avatarText}>
-                  {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                </Text>
-              ) : (
-                <Ionicons name="person-outline" size={40} color="#fff" />
-              )}
+              {/* Avatar or Placeholder */}
+              <Text style={styles.avatarText}>{user ? user.username?.charAt(0).toUpperCase() : '?'}</Text>
             </View>
             <View style={styles.profileInfo}>
+              {/* Nút chuyển kênh người bán chỉ hiển thị khi đã đăng nhập */}
+              {user && (
+                <TouchableOpacity style={styles.sellerSwitchBtn} onPress={handleSwitchToSeller}>
+                  <Text style={styles.sellerSwitchBtnText}>Kênh người bán</Text>
+                </TouchableOpacity>
+              )}
               {user ? (
-                <>
-                  <Text style={styles.userName}>{user.username || 'User'}</Text>
-                </>
+                <Text style={styles.userName}>{user.username || 'User'}</Text>
               ) : (
                 <TouchableOpacity onPress={() => router.push('/auth/login')}>
                   <Text style={styles.loginText}>Đăng nhập / Đăng ký</Text>
@@ -236,5 +240,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  // Thêm style cho nút chuyển kênh người bán
+  sellerSwitchBtn: {
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 10,
+    marginTop: 4,
+    elevation: 2,
+  },
+  sellerSwitchBtnText: {
+    color: '#007bff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });

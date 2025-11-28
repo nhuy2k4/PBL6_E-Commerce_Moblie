@@ -1,20 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-// import { useOrder } from '../../context/OrderContext'; // Nếu có context riêng cho order
-// import orderService from '../../services/orderService';
-// import ReturnItemCard from '../../components/order/ReturnItemCard';
-// import OrderCard from '../../components/order/OrderCard';
-
-// Dummy data/hàm fetchOrders cho demo, thay bằng API thực tế
-const fetchOrders = async () => {
-  // TODO: Gọi API thực tế
-  return [
-    { id: 1, status: 'PENDING', createdAt: '2025-11-20T10:00:00', total: 200000, code: 'DH001' },
-    { id: 2, status: 'SHIPPING', createdAt: '2025-11-19T09:00:00', total: 350000, code: 'DH002' },
-    { id: 3, status: 'COMPLETED', createdAt: '2025-11-18T08:00:00', total: 150000, code: 'DH003' },
-  ];
-};
+import { getMyOrders } from '../../services/orderService';
 
 const TABS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -39,8 +26,11 @@ const OrderListPage = () => {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const data = await fetchOrders();
-      setOrders(data);
+      const data = await getMyOrders();
+      // Nếu API trả về { data: [...] } thì lấy data.data, nếu trả về mảng thì lấy luôn
+      setOrders(Array.isArray(data) ? data : data?.data || []);
+    } catch (e) {
+      setOrders([]);
     } finally {
       setLoading(false);
     }

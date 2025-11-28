@@ -163,14 +163,28 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Cart Items */}
-        {items.map((item) => (
-          <CartItemCard
-            key={item.id}
-            item={item}
-            isSelected={selectedItems.includes(item.id)}
-            onToggleSelect={() => toggleItemSelection(item.id)}
-          />
+        {/* Cart Items Grouped by Shop */}
+        {Object.entries(
+          items.reduce((acc, item) => {
+            const shopKey = item.shopId || 'unknown';
+            if (!acc[shopKey]) acc[shopKey] = { shopName: item.shopName || 'Shop', products: [] };
+            acc[shopKey].products.push(item);
+            return acc;
+          }, {})
+        ).map(([shopId, group]) => (
+          <View key={shopId} style={{ marginBottom: 24 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: '#FF6B35' }}>
+              {(group as any).shopName || 'Shop'}
+            </Text>
+            {(group as any).products.map((item: any) => (
+              <CartItemCard
+                key={item.id}
+                item={item}
+                isSelected={selectedItems.includes(item.id)}
+                onToggleSelect={() => toggleItemSelection(item.id)}
+              />
+            ))}
+          </View>
         ))}
 
         <View style={{ height: 100 }} />

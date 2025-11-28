@@ -1,13 +1,14 @@
 // Order service - Synced with Web
 import { API_ENDPOINTS } from '../constants/config';
-import { buildUrl } from '../utils/api';
-import { getItem } from '../utils/storage';
+import { buildUrl, fetchJsonWithAuth } from '../utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const fetchApi = async (url: string, options: RequestInit = {}) => {
-  const token = await getItem('token');
+  const token = await AsyncStorage.getItem('access_token');
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...options.headers,
   };
