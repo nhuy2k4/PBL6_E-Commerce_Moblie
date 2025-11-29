@@ -63,7 +63,6 @@ export default function BestSellerSection() {
     </View>
   );
 
-  console.log('BestSellerSection products:', products);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with See All */}

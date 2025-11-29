@@ -63,7 +63,6 @@ export default function NewArrivalSection() {
     </View>
   );
 
-  console.log('NewArrivalSection products:', products);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with See All */}

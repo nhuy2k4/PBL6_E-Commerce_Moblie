@@ -24,31 +24,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in with retry logic
     const checkAuth = async () => {
+      const maxRetries = 3;
+      let retryCount = 0;
+      
       try {
+        console.log('🔐 Checking auth on app start...');
         const token = await AsyncStorage.getItem('token');
+        console.log('🔑 Token from storage:', token ? `${token.substring(0, 20)}...` : 'null');
+        
         if (token) {
-          // Try to get user info from API
-          const userData = await getCurrentUser(token);
-          console.log('DEBUG getCurrentUser result:', userData);
-          // Only set user if userData is valid (has id)
-          if (userData && userData.id) {
-            setUser(userData);
-          } else {
-            setUser(null);
-            await AsyncStorage.removeItem('token');
+          console.log('✅ Token found, fetching user data...');
+          
+          // Retry logic for network issues
+          while (retryCount < maxRetries) {
+            try {
+              // Try to get user info from API
+              const userData = await getCurrentUser(token);
+              console.log('👤 User data received:', userData);
+              
+              // Only set user if userData is valid (has id)
+              if (userData && userData.id) {
+                console.log('✅ Valid user data, setting user:', userData.username);
+                setUser(userData);
+                break; // Success, exit retry loop
+              } else {
+                console.warn('⚠️ Invalid user data');
+                // Invalid data from backend - this is not a network error
+                // Clear token only if we got a response but it's invalid
+                setUser(null);
+                await AsyncStorage.removeItem('token');
+                break;
+              }
+            } catch (error: any) {
+              retryCount++;
+              console.warn(`⚠️ Attempt ${retryCount}/${maxRetries} failed:`, error.message);
+              
+              if (retryCount < maxRetries) {
+                // Wait before retry (exponential backoff)
+                const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
+                console.log(`⏳ Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              } else {
+                // Max retries reached - keep token but set user to null
+                // User can manually retry by pulling to refresh
+                console.error('❌ Max retries reached, keeping token for later retry');
+                setUser(null);
+              }
+            }
           }
         } else {
+          console.log('❌ No token found, user not logged in');
           setUser(null);
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
-        // Clear invalid token
-        await AsyncStorage.removeItem('token');
+        console.error('💥 Error checking auth:', error);
         setUser(null);
       } finally {
         setIsLoading(false);
+        console.log('🏁 Auth check complete');
       }
     };
 
@@ -57,15 +92,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (username: string, password: string) => {
     try {
+      console.log('🔐 Logging in user:', username);
       const response = await apiLogin({ username, password });
+      
+      console.log('✅ Login successful, saving tokens...');
       await AsyncStorage.setItem('token', response.accessToken);
+      console.log('💾 Access token saved');
+      
       if (response.refreshToken) {
         await AsyncStorage.setItem('refreshToken', response.refreshToken);
+        console.log('💾 Refresh token saved');
       }
+      
+      console.log('👤 Setting user:', response.user);
       setUser(response.user);
+      
       await refreshCartOnLogin.refresh();
+      console.log('🛒 Cart refreshed');
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('💥 Login error:', error);
       throw error;
     }
   };
@@ -89,12 +134,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      console.log('🚪 Logging out user...');
       await AsyncStorage.multiRemove(['token', 'refreshToken', 'user']);
+      console.log('🗑️ Tokens removed from storage');
       setUser(null);
       // Clear cart data when user logs out
       clearCartOnLogout.clear();
+      console.log('✅ Logout complete');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('💥 Logout error:', error);
       throw error;
     }
   };

@@ -21,13 +21,6 @@ export default function HomeHeader() {
   const colors = Colors[colorScheme ?? 'light'];
   const { items } = useCart();
 
-  // Thêm log debug
-  console.log('colorScheme:', colorScheme);
-  console.log('Colors:', Colors);
-  console.log('colors:', colors);
-  console.log('sportColors:', sportColors);
-  console.log('items:', items);
-
   const cartItemCount = items?.length || 0;
 
   return (

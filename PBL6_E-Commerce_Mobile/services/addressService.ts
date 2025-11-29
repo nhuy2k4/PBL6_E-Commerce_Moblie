@@ -1,51 +1,38 @@
-// API lấy tỉnh/huyện/xã từ https://provinces.open-api.vn/api/
-const BASE_API = 'https://provinces.open-api.vn/api';
+// API lấy tỉnh/huyện/xã từ GHN Master API (backend)
+import type { Address } from '../types';
+import { fetchPrivate, fetchPublic } from '../utils/fetch';
 
 export async function getProvinces() {
-  const res = await fetch(`${BASE_API}/p/`);
-  if (!res.ok) throw new Error('Failed to fetch provinces');
-  return await res.json();
+  return await fetchPublic('/ghn/master/provinces');
 }
 
-export async function getDistricts(provinceCode) {
-  if (!provinceCode) return [];
-  const res = await fetch(`${BASE_API}/p/${provinceCode}?depth=2`);
-  if (!res.ok) throw new Error('Failed to fetch districts');
-  const data = await res.json();
-  return data.districts || [];
+export async function getDistricts(provinceId: number) {
+  if (!provinceId) return [];
+  return await fetchPublic(`/ghn/master/districts?province_id=${provinceId}`);
 }
 
-export async function getWards(districtCode) {
-  if (!districtCode) return [];
-  const res = await fetch(`${BASE_API}/d/${districtCode}?depth=2`);
-  if (!res.ok) throw new Error('Failed to fetch wards');
-  const data = await res.json();
-  return data.wards || [];
+export async function getWards(districtId: number) {
+  if (!districtId) return [];
+  return await fetchPublic(`/ghn/master/wards?district_id=${districtId}`);
 }
+
+// Resolve address names to GHN codes
+export async function resolveAddress(province: string, district: string, ward: string) {
+  return await fetchPublic('/ghn/master/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ province, district, ward })
+  });
+}
+
 // Shared address service
-import type { Address } from '../types';
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Đổi thành URL ngrok public (ví dụ: https://abc123.ngrok.io)
-const BACKEND_API = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev'; // TODO: Thay bằng domain ngrok thật của bạn
-
 // Lấy danh sách địa chỉ từ API backend (chuẩn hóa giống web)
 export async function getAddresses(): Promise<Address[]> {
   try {
-    const token = await AsyncStorage.getItem('token');
-    const res = await fetch(`${BACKEND_API}/api/me/addresses`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('getAddresses API error:', res.status, text);
-      throw new Error(`Failed to fetch addresses: ${res.status} ${text}`);
-    }
-    return await res.json();
+    console.log('📍 Fetching addresses from /me/addresses');
+    const result = await fetchPrivate('/me/addresses') as Address[];
+    console.log('📍 Addresses fetched:', result);
+    return result;
   } catch (err) {
     console.error('getAddresses exception:', err);
     throw err;

@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { getAvailableServices, calculateShippingFee, confirmCheckout, createMoMoPayment } from '@/services/orderService';
 import { getProvinces, getDistricts, getWards } from '@/services/addressService';
+import { getSportyPayWallet, payWithSportyPay } from '@/services/sportyPayService';
 import { ShippingAddressSection } from '../components/feature/checkout/ShippingAddressSection';
 import { ShippingMethodSection } from '../components/feature/checkout/ShippingMethodSection';
 import { OrderItemsSection } from '../components/feature/checkout/OrderItemsSection';
@@ -12,6 +13,25 @@ import { PaymentMethodSection } from '../components/feature/checkout/PaymentMeth
 import { OrderNoteSection } from '../components/feature/checkout/OrderNoteSection';
 import { CheckoutFooter } from '../components/feature/checkout/CheckoutFooter';
 import { formatPrice, formatWeight, getTotalWeight } from '../components/feature/checkout/checkoutUtils';
+
+/**
+ * Convert MoMo web payment URL to deep link for direct app opening
+ */
+const convertToMoMoDeepLink = (webUrl: string): string => {
+  try {
+    // If already a deep link, return as is
+    if (webUrl.startsWith('momo://') || webUrl.startsWith('partnerapp://')) {
+      return webUrl;
+    }
+    
+    // MoMo web URL should handle universal links automatically
+    // Just return original URL - MoMo will redirect to app if installed
+    return webUrl;
+  } catch (error) {
+    console.error('Error converting to deep link:', error);
+    return webUrl;
+  }
+};
 
 interface ShippingAddress {
   toName: string;
@@ -105,9 +125,10 @@ export default function Checkout() {
     toAddress: '',
   });
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'MOMO'>('COD');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'MOMO' | 'SPORTY_PAY'>('COD');
   const [orderNotes, setOrderNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sportyPayBalance, setSportyPayBalance] = useState<number>(0);
   const [provinces, setProvinces] = useState<any[]>([]);
   const [districts, setDistricts] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
@@ -120,6 +141,86 @@ export default function Checkout() {
   const [selectedService, setSelectedService] = useState<GhnService | null>(null);
   const [loadingServices, setLoadingServices] = useState(false);
   const [calculatedShippingFee, setCalculatedShippingFee] = useState<number>(0);
+  const lastAlertedAddressRef = useRef<number | null>(null);
+  
+  // Handle URL scheme when returning from MoMo payment
+  useEffect(() => {
+    const handleUrl = (event: any) => {
+      const url = event.url;
+      console.log('🔗 URL scheme received:', url);
+      
+      // Check if returning from MoMo payment
+      if (url && url.includes('momo') && url.includes('resultCode')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const resultCode = urlParams.get('resultCode');
+        const message = urlParams.get('message');
+        const orderId = urlParams.get('orderId');
+        const requestId = urlParams.get('requestId');
+        
+        console.log('📱 MoMo return - resultCode:', resultCode, 'orderId:', orderId);
+        
+        if (resultCode === '0') {
+          // Payment successful
+          Alert.alert(
+            'Thanh toán thành công!',
+            'Cảm ơn bạn đã thanh toán. Đơn hàng của bạn đang được xử lý.',
+            [
+              {
+                text: 'Xem đơn hàng',
+                onPress: () => {
+                  clearCart();
+                  router.push('/customer/OrderListPage');
+                },
+              },
+            ]
+          );
+        } else {
+          // Payment failed or cancelled
+          console.log('❌ MoMo payment cancelled/failed - resultCode:', resultCode);
+          
+          // Notify backend about cancellation (optional - IPN should handle this)
+          if (requestId) {
+            try {
+              // Call API to mark payment as cancelled/failed
+              // This is backup in case IPN doesn't fire
+              console.log('📞 Notifying backend about payment cancellation');
+            } catch (error) {
+              console.error('Failed to notify backend:', error);
+            }
+          }
+          
+          Alert.alert(
+            'Thanh toán không thành công',
+            message || `Thanh toán bị hủy hoặc xảy ra lỗi (Mã: ${resultCode}). Vui lòng thử lại.`,
+            [
+              { text: 'Thử lại MoMo', onPress: () => {} },
+              {
+                text: 'Chọn SportyPay',
+                onPress: () => setPaymentMethod('SPORTY_PAY'),
+              },
+              {
+                text: 'Chọn COD',
+                onPress: () => setPaymentMethod('COD'),
+              },
+            ]
+          );
+        }
+      }
+    };
+
+    const linkingListener = Linking.addEventListener('url', handleUrl);
+    
+    // Check if app was opened with a URL
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleUrl({ url });
+      }
+    });
+
+    return () => {
+      linkingListener?.remove();
+    };
+  }, []);
 
   // Filter items with quantity > 0
   console.log('DEBUG checkoutItems:', checkoutItems);
@@ -153,6 +254,23 @@ export default function Checkout() {
     };
     fetchProvinces();
   }, []);
+
+  // Load SportyPay balance on mount
+  useEffect(() => {
+    const loadSportyPayBalance = async () => {
+      try {
+        const wallet = await getSportyPayWallet();
+        setSportyPayBalance(wallet.balance);
+      } catch (error) {
+        console.error('Error loading SportyPay balance:', error);
+        setSportyPayBalance(0);
+      }
+    };
+    
+    if (userId) {
+      loadSportyPayBalance();
+    }
+  }, [userId]);
 
   // Load districts when province changes
   useEffect(() => {
@@ -281,6 +399,34 @@ export default function Checkout() {
           // Response có cấu trúc: response.data.data.total
           const feeAmount = response.data.data?.total || response.data.data?.service_fee || 0;
           console.log('Calculated fee amount:', feeAmount);
+          
+          // Kiểm tra nếu tuyến đường không được hỗ trợ
+          if (feeAmount === 0 && response.data.data?.package_type === "unavailable") {
+            const addressId = Number(selectedAddressId);
+            console.log('⚠️ Route not supported for address:', addressId, 'service:', selectedService?.service_id);
+            
+            // Chỉ hiển thị alert nếu chưa hiển thị cho địa chỉ này và không có service nào khác đang tính phí thành công
+            if (lastAlertedAddressRef.current !== addressId) {
+              // Delay để kiểm tra nếu có service khác tính được phí
+              setTimeout(() => {
+                if (calculatedShippingFee === 0) {
+                  lastAlertedAddressRef.current = addressId;
+                  Alert.alert(
+                    'Thông báo', 
+                    'Tuyến đường này chưa được hỗ trợ giao hàng. Vui lòng chọn địa chỉ khác hoặc liên hệ shop.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }, 1000); // Wait 1s to see if other services succeed
+            }
+          } else {
+            // Nếu tính được phí thành công, clear alert flag
+            const addressId = Number(selectedAddressId);
+            if (lastAlertedAddressRef.current === addressId) {
+              lastAlertedAddressRef.current = null;
+            }
+          }
+          
           if (feeAmount !== calculatedShippingFee) {
             setCalculatedShippingFee(feeAmount);
           }
@@ -288,13 +434,14 @@ export default function Checkout() {
       } catch (error) {
         if (isMounted) {
           console.error('Error calculating shipping fee:', error);
-          Alert.alert('Lỗi', 'Không thể tính phí vận chuyển');
+          // Chỉ hiển thị alert cho lỗi thực sự, không phải những lỗi đã được xử lý
+          Alert.alert('Lỗi', 'Không thể tính phí vận chuyển. Vui lòng thử lại.');
         }
       }
     };
     calcFee();
     return () => { isMounted = false; };
-  }, [selectedService, checkoutItems, calculatedShippingFee]);
+  }, [selectedService, checkoutItems, selectedAddressId]); // Remove calculatedShippingFee to prevent infinite loop
 
   const handlePlaceOrder = async () => {
     const addressObj = addresses.find(a => a.id === selectedAddressId);
@@ -331,17 +478,205 @@ export default function Checkout() {
       });
 
       // Handle payment
-      if (paymentMethod === 'MOMO') {
-        const paymentResponse = await createMoMoPayment({
-          orderId: orderResponse.data.orderId,
-          amount: finalTotal,
-          orderInfo: `Thanh toán đơn hàng #${orderResponse.data.orderId}`,
-        });
-        
-        if (paymentResponse && paymentResponse.data?.payUrl) {
-          // TODO: Open MoMo payment URL (use WebView or deep link)
-          Alert.alert('Chuyển sang MoMo', 'Bạn sẽ được chuyển sang app MoMo để thanh toán');
-          // Linking.openURL(paymentResponse.data.payUrl);
+      if (paymentMethod === 'SPORTY_PAY') {
+        // Check balance before payment
+        if (sportyPayBalance < finalTotal) {
+          Alert.alert(
+            'Số dư không đủ',
+            `Số dư SportyPay của bạn là ${sportyPayBalance.toLocaleString('vi-VN')} đ, không đủ để thanh toán đơn hàng ${finalTotal.toLocaleString('vi-VN')} đ.`,
+            [
+              { text: 'Nạp thêm tiền', onPress: () => router.push('/me/sporty-pay') },
+              { text: 'Chọn phương thức khác', onPress: () => setPaymentMethod('COD') }
+            ]
+          );
+          return;
+        }
+
+        try {
+          console.log('💳 Processing SportyPay payment for order:', orderResponse.data.orderId);
+          await payWithSportyPay(
+            orderResponse.data.orderId,
+            finalTotal,
+            `Thanh toán đơn hàng #${orderResponse.data.orderId}`
+          );
+          
+          Alert.alert(
+            'Thanh toán thành công!',
+            'Đơn hàng của bạn đã được thanh toán bằng SportyPay.',
+            [
+              {
+                text: 'Xem đơn hàng',
+                onPress: () => {
+                  clearCart();
+                  router.push('/customer/OrderListPage');
+                },
+              },
+            ]
+          );
+        } catch (paymentError) {
+          console.error('❌ SportyPay payment error:', paymentError);
+          Alert.alert(
+            'Lỗi thanh toán',
+            'Không thể thanh toán bằng SportyPay. Vui lòng thử lại hoặc chọn phương thức khác.',
+            [
+              { text: 'Thử lại', style: 'default' },
+              { text: 'Chọn COD', onPress: () => setPaymentMethod('COD') },
+            ]
+          );
+        }
+      } else if (paymentMethod === 'MOMO') {
+        try {
+          console.log('🏦 Creating MoMo payment for order:', orderResponse.data.orderId);
+          const paymentResponse = await createMoMoPayment({
+            orderId: orderResponse.data.orderId,
+            amount: finalTotal,
+            orderInfo: `Thanh toán đơn hàng #${orderResponse.data.orderId}`,
+          });
+          
+          console.log('🏦 MoMo payment response:', paymentResponse);
+          
+          if (paymentResponse && paymentResponse.data?.payUrl) {
+            const payUrl = paymentResponse.data.payUrl;
+            console.log('🏦 Opening MoMo URL:', payUrl);
+            
+            try {
+              // Convert to deep link if possible
+              const paymentUrl = convertToMoMoDeepLink(payUrl);
+              console.log('🔗 Converted URL:', paymentUrl);
+              
+              // Kiểm tra nếu MoMo app có sẵn
+              const canOpenMoMo = await Linking.canOpenURL('momo://');
+              
+              if (canOpenMoMo) {
+                // Có MoMo app - mở trực tiếp
+                console.log('✅ MoMo app detected, opening directly');
+                await Linking.openURL(paymentUrl);
+                
+                Alert.alert(
+                  'Đã chuyển sang MoMo', 
+                  'Vui lòng hoàn tất thanh toán trên app MoMo. Sau khi thanh toán xong, bạn sẽ quay lại app.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        // Không clear cart ngay, chờ user thanh toán xong
+                      },
+                    },
+                  ]
+                );
+              } else {
+                // Không có MoMo app - thông báo cài đặt
+                console.log('⚠️ MoMo app not found');
+                Alert.alert(
+                  'Cần cài đặt MoMo',
+                  'Bạn cần cài đặt app MoMo để thanh toán. Bạn có muốn mở trình duyệt?',
+                  [
+                    { text: 'Hủy', style: 'cancel' },
+                    {
+                      text: 'Mở trình duyệt',
+                      onPress: () => Linking.openURL(payUrl),
+                    },
+                  ]
+                );
+              }
+            } catch (linkError) {
+              console.error('❌ Error opening MoMo:', linkError);
+              // Fallback: mở browser với URL gốc
+              const paymentUrl = convertToMoMoDeepLink(payUrl);
+              await Linking.openURL(paymentUrl);
+              
+              Alert.alert(
+                'Thanh toán MoMo',
+                'Bạn đã được chuyển sang trình duyệt để thanh toán MoMo. Sau khi hoàn tất, vui lòng quay lại app.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      clearCart();
+                      router.replace('/(tabs)');
+                    },
+                  },
+                ]
+              );
+            }
+          } else {
+            throw new Error('Không nhận được URL thanh toán từ MoMo');
+          }
+        } catch (paymentError) {
+          console.error('❌ MoMo payment error:', paymentError);
+          Alert.alert(
+            'Lỗi thanh toán',
+            'Không thể tạo thanh toán MoMo. Vui lòng thử lại hoặc chọn thanh toán khi nhận hàng.',
+            [
+              { text: 'Thử lại', style: 'default' },
+              {
+                text: 'COD',
+                onPress: () => {
+                  setPaymentMethod('COD');
+                },
+              },
+            ]
+          );
+        }
+      } else if (paymentMethod === 'SPORTY_PAY') {
+        try {
+          console.log('🏦 Processing SportyPay payment for order:', orderResponse.data.orderId);
+          
+          // Check if user has sufficient balance
+          if (sportyPayBalance < finalTotal) {
+            Alert.alert(
+              'Số dư không đủ',
+              `Số dư hiện tại: ${sportyPayBalance.toLocaleString('vi-VN')} đ\nCần thanh toán: ${finalTotal.toLocaleString('vi-VN')} đ\n\nVui lòng nạp thêm tiền hoặc chọn phương thức khác.`,
+              [
+                {
+                  text: 'Nạp tiền',
+                  onPress: () => {
+                    router.push('/me/sporty-pay');
+                  },
+                },
+                {
+                  text: 'Chọn COD',
+                  onPress: () => {
+                    setPaymentMethod('COD');
+                  },
+                },
+              ]
+            );
+            return;
+          }
+          
+          // Process SportyPay payment
+          await payWithSportyPay(
+            orderResponse.data.orderId,
+            finalTotal,
+            `Thanh toán đơn hàng #${orderResponse.data.orderId}`
+          );
+          
+          Alert.alert('Thanh toán thành công!', 'Đơn hàng của bạn đã được thanh toán bằng SportyPay.', [
+            {
+              text: 'OK',
+              onPress: () => {
+                clearCart();
+                router.replace('/customer/OrderListPage');
+              },
+            },
+          ]);
+          
+        } catch (paymentError) {
+          console.error('❌ SportyPay payment error:', paymentError);
+          Alert.alert(
+            'Lỗi thanh toán SportyPay',
+            'Không thể thực hiện thanh toán. Vui lòng thử lại hoặc chọn phương thức khác.',
+            [
+              { text: 'Thử lại', style: 'default' },
+              {
+                text: 'Chọn COD',
+                onPress: () => {
+                  setPaymentMethod('COD');
+                },
+              },
+            ]
+          );
         }
       } else {
         // COD
@@ -350,7 +685,7 @@ export default function Checkout() {
             text: 'OK',
             onPress: () => {
               clearCart();
-              router.replace('/(tabs)');
+              router.replace('/customer/OrderListPage');
             },
           },
         ]);
@@ -435,7 +770,12 @@ export default function Checkout() {
           formatWeight={formatWeight}
         />
         <OrderItemsSection checkoutItems={checkoutItems} />
-        <PaymentMethodSection paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} styles={styles} />
+        <PaymentMethodSection 
+          paymentMethod={paymentMethod} 
+          setPaymentMethod={setPaymentMethod} 
+          styles={styles} 
+          sportyPayBalance={sportyPayBalance}
+        />
         <OrderNoteSection orderNotes={orderNotes} setOrderNotes={setOrderNotes} styles={styles} />
         <View style={{ height: 200 }} />
       </ScrollView>

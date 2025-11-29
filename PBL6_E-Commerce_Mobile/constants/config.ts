@@ -83,12 +83,32 @@ export const API_ENDPOINTS = {
     MOMO_VERIFY: 'payment/momo/verify',
     WALLET_WITHDRAW: 'wallet/withdraw',
   },
+
+  // SportyPay Wallet
+  WALLET: {
+    INFO: 'wallet',
+    BALANCE: 'wallet/balance', 
+    TRANSACTIONS: 'wallet/transactions',
+    DEPOSIT: 'wallet/deposit',
+    WITHDRAW: 'wallet/withdraw',
+    STATISTICS: 'wallet/statistics',
+  },
   
   // Security
   SECURITY: {
     LOGIN_HISTORY: 'user/login-history',
     ACTIVE_SESSIONS: 'user/active-sessions',
     REVOKE_SESSION: 'user/revoke-session',
+  },
+
+  // Seller
+  SELLER: {
+    ORDERS: 'seller/orders',
+    ORDER_DETAIL: (orderId: number) => `seller/orders/${orderId}`,
+    UPDATE_ORDER_STATUS: (orderId: number) => `seller/orders/${orderId}/status`,
+    DASHBOARD: 'seller/dashboard',
+    PRODUCTS: 'seller/products',
+    ANALYTICS: 'seller/analytics',
   },
 };
 

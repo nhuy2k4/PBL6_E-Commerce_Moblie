@@ -96,7 +96,8 @@ export async function createMoMoPayment(paymentData: {
   orderInfo: string;
 }): Promise<any> {
   try {
-    const response = await fetchApi(buildUrl('/payment/momo/create'), {
+    console.log('🏦 Creating MoMo payment with data:', paymentData);
+    const response = await fetchApi(buildUrl(API_ENDPOINTS.PAYMENT.MOMO_CREATE), {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
@@ -147,6 +148,27 @@ export async function calculateShippingFee(data: {
     console.log('✅ calculateShippingFee response:', response);
     return response;
   } catch (error) {
+    // Nếu là lỗi GHN_ROUTE_NOT_FOUND, xử lý đặc biệt
+    if (error instanceof Error && error.message.includes('GHN_ROUTE_NOT_FOUND')) {
+      console.log('⚠️ GHN route not found for addressId:', data.addressId, 'serviceId:', data.serviceId);
+      return {
+        data: {
+          data: {
+            total: 0,
+            service_fee: 0,
+            cod_fee: 0,
+            insurance_fee: 0,
+            weight_category: "Không hỗ trợ",
+            package_type: "unavailable"
+          },
+          message: "Tuyến đường không được hỗ trợ"
+        },
+        error: null, // Set error to null để không trigger error alert
+        message: "Tuyến đường không được hỗ trợ",
+        status: 200
+      };
+    }
+    
     console.error('❌ Error calculating shipping fee:', error);
     throw error;
   }

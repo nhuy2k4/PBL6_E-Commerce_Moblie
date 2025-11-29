@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect } from 'react';
+import { Linking } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
@@ -15,11 +16,49 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   // Configure Google Sign-In on app start
   useEffect(() => {
     configureGoogleSignIn();
   }, []);
+
+  // Handle deep links for payment results
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      const url = event.url;
+      console.log('🔗 Deep link received in RootLayout:', url);
+
+      if (url.includes('payment-result')) {
+        // Parse query params
+        const urlObj = new URL(url);
+        const resultCode = urlObj.searchParams.get('resultCode');
+        const message = urlObj.searchParams.get('message');
+
+        console.log('💳 Payment result:', { resultCode, message });
+
+        // Navigate based on where payment came from
+        // For now, just go to home and let screens handle with useFocusEffect
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 500);
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check if app was opened with a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [router]);
 
   return (
     <AuthProvider>

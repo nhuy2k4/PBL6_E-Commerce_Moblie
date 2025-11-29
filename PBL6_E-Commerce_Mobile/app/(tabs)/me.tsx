@@ -55,6 +55,23 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+const walletItems: MenuItem[] = [
+  {
+    id: 'sportypay',
+    icon: 'wallet-outline',
+    title: 'SportyPay',
+    subtitle: 'Ví điện tử SportyPay',
+    showArrow: true,
+  },
+  {
+    id: 'bank',
+    icon: 'card-outline', 
+    title: 'Thẻ ngân hàng',
+    subtitle: 'Quản lý thẻ thanh toán',
+    showArrow: true,
+  },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -63,6 +80,32 @@ export default function ProfileScreen() {
   // Nút chuyển sang kênh Người Bán đặt ở trên cùng
   const handleSwitchToSeller = () => {
     router.push('/seller');
+  };
+
+  const handleMenuPress = (itemId: string) => {
+    switch (itemId) {
+      case 'orders':
+        router.push('/customer/OrderListPage');
+        break;
+      case 'sportypay':
+        router.push('/me/sporty-pay');
+        break;
+      case 'bank':
+        // TODO: Navigate to bank cards management
+        break;
+      case 'wishlist':
+        // TODO: Navigate to wishlist
+        break;
+      case 'viewed':
+        // TODO: Navigate to viewed items
+        break;
+      case 'settings':
+        // TODO: Navigate to settings
+        break;
+      case 'help':
+        // TODO: Navigate to help
+        break;
+    }
   };
   
   let user = null;
@@ -94,7 +137,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               )}
               {user ? (
-                <Text style={styles.userName}>{user.username || 'User'}</Text>
+                <Text style={styles.userName}>{user.fullName || user.username || 'User'}</Text>
               ) : (
                 <TouchableOpacity onPress={() => router.push('/auth/login')}>
                   <Text style={styles.loginText}>Đăng nhập / Đăng ký</Text>
@@ -104,18 +147,45 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Wallet Section */}
+        {user && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ví & Thanh toán</Text>
+            {walletItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.menuItem, { borderBottomColor: colors.icon + '20' }]}
+                onPress={() => handleMenuPress(item.id)}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: '#FF6B6B10' }]}> 
+                  <Ionicons name={item.icon as any} size={24} color="#FF6B6B" />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={[styles.menuTitle, { color: colors.text }]}>
+                    {item.title}
+                  </Text>
+                  {item.subtitle && (
+                    <Text style={[styles.menuSubtitle, { color: colors.icon }]}>
+                      {item.subtitle}
+                    </Text>
+                  )}
+                </View>
+                {item.showArrow && (
+                  <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Menu Items */}
-        <View style={styles.menuSection}>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Đơn hàng & Tài khoản</Text>
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={[styles.menuItem, { borderBottomColor: colors.icon + '20' }]}
-              onPress={() => {
-                if (item.id === 'orders') {
-                  router.push('/customer/OrderListPage');
-                }
-                // Có thể thêm điều hướng cho các menu khác ở đây
-              }}
+              onPress={() => handleMenuPress(item.id)}
             >
               <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '10' }]}> 
                 <Ionicons name={item.icon as any} size={24} color={colors.tint} />
@@ -202,6 +272,19 @@ const styles = StyleSheet.create({
   menuSection: {
     marginTop: 16,
     backgroundColor: '#fff',
+  },
+  section: {
+    marginTop: 16,
+    backgroundColor: '#fff',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
   },
   menuItem: {
     flexDirection: 'row',

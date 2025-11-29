@@ -33,29 +33,97 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('L');
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  useEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
+  const sizes = React.useMemo(() => {
+    if (!product?.variants || product.variants.length === 0) return [];
+    
+    const sizeSet = new Set<string>();
+    product.variants.forEach((variant: any) => {
+      if (variant.variantValues) {
+        variant.variantValues.forEach((vv: any) => {
+          if (vv.attributeName === 'Size' || vv.attributeName === 'size') {
+            sizeSet.add(vv.value);
+          }
+        });
+      }
+    });
+    
+    return Array.from(sizeSet);
+  }, [product?.variants]);
+
+  const productColors = React.useMemo(() => {
+    console.log('🔍 Product variants:', product?.variants);
+    if (product?.variants && product.variants.length > 0) {
+      console.log('🔍 First variant structure:', product.variants[0]);
+      console.log('🔍 Variant keys:', Object.keys(product.variants[0]));
+    }
+    
+    if (!product?.variants || product.variants.length === 0) return [];
+    const colorSet = new Set<string>();
+    
+    product.variants.forEach((variant: any) => {
+      console.log('🔍 Processing variant:', variant);
+      
+      // Thử các cách truy cập khác nhau
+      if (variant.color) {
+        colorSet.add(variant.color);
+      }
+      if (variant.attributeValues?.color) {
+        colorSet.add(variant.attributeValues.color);
+      }
+      if (variant.variantValues) {
+        console.log('🔍 Variant values:', variant.variantValues);
+        variant.variantValues.forEach((vv: any) => {
+          console.log('🔍 Variant value:', vv);
+          if (vv.attributeName?.toLowerCase().includes('color') || 
+              vv.attribute?.toLowerCase().includes('color')) {
+            colorSet.add(vv.value);
+          }
+        });
+      }
+      // Kiểm tra trong sku nếu có pattern như "MUG-GREEN-001"
+      if (variant.sku && typeof variant.sku === 'string') {
+        const skuParts = variant.sku.split('-');
+        if (skuParts.length >= 2) {
+          const possibleColor = skuParts[1].toLowerCase();
+          if (['green', 'beige', 'blue', 'red', 'black', 'white'].includes(possibleColor)) {
+            colorSet.add(possibleColor.charAt(0).toUpperCase() + possibleColor.slice(1));
+          }
+        }
+      }
+    });
+    
+    console.log('🔍 Final colors set:', Array.from(colorSet));
+    return Array.from(colorSet);
+  }, [product?.variants]);
 
   const loadProduct = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getProductById(Number(productId));
       console.log('Product detail raw data:', data);
-      // Nếu data có trường data (giống API list), lấy data.data
       const productObj = data && data.data ? data.data : data;
       console.log('Product detail object for setProduct:', productObj);
       setProduct(productObj);
-      // Set default variant (first variant or variant matching default size)
       if (productObj.variants && productObj.variants.length > 0) {
-        // Try to find variant with size L (default)
-        const defaultVariant = productObj.variants.find(v => 
-          v.variantValues?.some(vv => vv.value === 'L')
+        const defaultVariant = productObj.variants.find((v: any) => 
+          v.variantValues?.some((vv: any) => vv.value === 'L')
         ) || productObj.variants[0];
         setSelectedVariantId(defaultVariant.id);
+        
+        // Set default color if available
+        if (defaultVariant.sku && typeof defaultVariant.sku === 'string') {
+          const skuParts = defaultVariant.sku.split('-');
+          if (skuParts.length >= 2) {
+            const possibleColor = skuParts[1].toLowerCase();
+            if (['green', 'beige', 'blue', 'red', 'black', 'white'].includes(possibleColor)) {
+              setSelectedColor(possibleColor.charAt(0).toUpperCase() + possibleColor.slice(1));
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading product:', error);
@@ -64,6 +132,10 @@ export default function ProductDetailScreen() {
       setLoading(false);
     }
   }, [productId]);
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     loadProduct();
@@ -85,16 +157,11 @@ export default function ProductDetailScreen() {
     );
   }
 
-
-  const sizes = ['S', 'M', 'L', 'XL'];
-
-  // Lấy đúng mảng ảnh như web, chỉ lấy string hợp lệ
   const productImages: string[] = [];
   if (typeof product.mainImage === 'string' && product.mainImage) productImages.push(product.mainImage);
   if (Array.isArray(product.images)) productImages.push(...product.images.filter(img => typeof img === 'string' && img));
   if (typeof product.imageUrl === 'string' && product.imageUrl) productImages.push(product.imageUrl);
 
-  // Lấy giá rẻ nhất như web
   const cheapestVariant = product.variants?.reduce((min, v) =>
     v.price < min.price ? v : min
   , product.variants?.[0]);
@@ -232,31 +299,70 @@ export default function ProductDetailScreen() {
             </Text>
           </View>
 
-          {/* Size Selector */}
-          <View style={styles.sizeSection}>
-            <Text style={styles.sectionLabel}>Select Size</Text>
-            <View style={styles.sizeButtons}>
-              {sizes.map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  onPress={() => handleSizeSelect(size)}
-                  style={[
-                    styles.sizeButton,
-                    selectedSize === size && styles.sizeButtonActive,
-                  ]}
-                >
-                  <Text
+          {/* Size Selector - chỉ hiển thị khi có sizes */}
+          {sizes.length > 0 && (
+            <View style={styles.sizeSection}>
+              <Text style={styles.sectionLabel}>Select Size</Text>
+              <View style={styles.sizeButtons}>
+                {sizes.map((size) => (
+                  <TouchableOpacity
+                    key={size}
+                    onPress={() => handleSizeSelect(size)}
                     style={[
-                      styles.sizeButtonText,
-                      selectedSize === size && styles.sizeButtonTextActive,
+                      styles.sizeButton,
+                      selectedSize === size && styles.sizeButtonActive,
                     ]}
                   >
-                    {size}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.sizeButtonText,
+                        selectedSize === size && styles.sizeButtonTextActive,
+                      ]}
+                    >
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* Nếu có màu sắc, hiển thị thêm color selector */}
+          {productColors.length > 0 && (
+            <View style={styles.sizeSection}>
+              <Text style={styles.sectionLabel}>Select Color</Text>
+              <View style={styles.sizeButtons}>
+                {productColors.map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    onPress={() => {
+                      console.log('🎨 Color selected:', color);
+                      setSelectedColor(color);
+                      // Handle color selection
+                      const matchingVariant = product?.variants?.find((v: any) => 
+                        v.variantValues?.some((vv: any) => vv.value === color) ||
+                        v.sku?.toLowerCase().includes(color.toLowerCase())
+                      );
+                      if (matchingVariant) {
+                        setSelectedVariantId(matchingVariant.id);
+                        console.log('🎨 Matching variant:', matchingVariant);
+                      }
+                    }}
+                    style={[
+                      styles.sizeButton,
+                      styles.colorButton,
+                      selectedColor === color && styles.sizeButtonActive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.sizeButtonText,
+                      selectedColor === color && styles.sizeButtonTextActive,
+                    ]}>{color}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Quantity Selector */}
           <View style={styles.quantitySection}>
@@ -533,5 +639,10 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  colorButton: {
+    width: 'auto',
+    paddingHorizontal: 16,
+    minWidth: 50,
   },
 });

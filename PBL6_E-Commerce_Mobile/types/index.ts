@@ -7,6 +7,7 @@ export interface User {
 	email: string;
 	phoneNumber?: string | null;
 	role: 'BUYER' | 'SELLER' | 'ADMIN';
+	fullName?: string | null;
 }
 
 export interface Product {
