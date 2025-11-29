@@ -1,3 +1,0 @@
-import { ProductCard } from './ProductCard';
-
-// ...existing code...
