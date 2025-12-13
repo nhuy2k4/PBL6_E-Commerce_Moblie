@@ -5,107 +5,168 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-interface Notification {
-  id: number;
-  type: 'order' | 'promotion' | 'system';
-  title: string;
-  message: string;
-  time: string;
-  isRead: boolean;
-}
-
-const notifications: Notification[] = [
-  {
-    id: 1,
-    type: 'order',
-    title: 'Đơn hàng đã được giao',
-    message: 'Đơn hàng #12345 đã được giao thành công',
-    time: '2 giờ trước',
-    isRead: false,
-  },
-  {
-    id: 2,
-    type: 'promotion',
-    title: 'Flash Sale hôm nay',
-    message: 'Giảm giá đến 50% cho nhiều sản phẩm hot',
-    time: '5 giờ trước',
-    isRead: false,
-  },
-  {
-    id: 3,
-    type: 'system',
-    title: 'Cập nhật hệ thống',
-    message: 'Ứng dụng đã được cập nhật lên phiên bản mới',
-    time: '1 ngày trước',
-    isRead: true,
-  },
-];
+import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export default function NotificationScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { user } = useAuth();
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('📱 NotificationScreen - User:', user?.id, 'Role:', user?.role);
+  }, [user]);
+  
+  const { 
+    notifications, 
+    isConnected, 
+    markAsRead, 
+    markAllAsRead,
+    clearAll,
+    deleteNotification,
+    unreadCount 
+  } = useNotifications(user?.id, user?.role || 'BUYER');
+
+  // Debug notifications state
+  React.useEffect(() => {
+    console.log('📱 Notifications count:', notifications.length);
+    console.log('📱 Unread count:', unreadCount);
+    console.log('📱 WebSocket connected:', isConnected);
+    if (notifications.length > 0) {
+      console.log('📱 Latest notification:', JSON.stringify(notifications[0], null, 2));
+    }
+  }, [notifications, unreadCount, isConnected]);
+
+  // Helper function to format timestamp
+  const formatTime = (timestamp: number) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} ngày trước`;
+    if (hours > 0) return `${hours} giờ trước`;
+    if (minutes > 0) return `${minutes} phút trước`;
+    return 'Vừa xong';
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'order':
+      case 'ORDER_CONFIRMED':
+      case 'ORDER_SHIPPING':
+      case 'ORDER_DELIVERED':
+      case 'ORDER_CANCELLED':
         return 'cube-outline';
       case 'promotion':
         return 'pricetag-outline';
-      case 'system':
-        return 'information-circle-outline';
       default:
         return 'notifications-outline';
     }
+  };
+
+  const handleNotificationPress = async (notif: any) => {
+    if (!notif.read) {
+      await markAsRead(notif.id);
+    }
+    // TODO: Navigate to order detail screen if needed
+  };
+
+  const handleMarkAllRead = async () => {
+    await markAllAsRead();
+  };
+
+  const handleClearAll = async () => {
+    await clearAll();
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.tint }]}>
-        <Text style={styles.headerTitle}>Thông báo</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Thông báo</Text>
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.headerButton}>
+            <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClearAll} style={styles.headerButton}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {/* Connection Status */}
+      {!isConnected && (
+        <View style={styles.connectionBanner}>
+          <Ionicons name="wifi-outline" size={16} color="#666" />
+          <Text style={styles.connectionText}>Đang kết nối lại...</Text>
+        </View>
+      )}
+
       <ScrollView>
-        {notifications.map((notification) => (
-          <TouchableOpacity
-            key={notification.id}
-            style={[
-              styles.notificationItem,
-              { 
-                backgroundColor: notification.isRead 
-                  ? colors.background 
-                  : colors.tint + '10' 
-              }
-            ]}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: colors.tint + '20' }]}>
-              <Ionicons 
-                name={getIcon(notification.type) as any} 
-                size={24} 
-                color={colors.tint} 
-              />
-            </View>
-            <View style={styles.contentContainer}>
-              <Text style={[styles.title, { color: colors.text }]}>
-                {notification.title}
-              </Text>
-              <Text style={[styles.message, { color: colors.icon }]}>
-                {notification.message}
-              </Text>
-              <Text style={[styles.time, { color: colors.icon }]}>
-                {notification.time}
-              </Text>
-            </View>
-            {!notification.isRead && (
-              <View style={[styles.unreadDot, { backgroundColor: colors.tint }]} />
-            )}
-          </TouchableOpacity>
-        ))}
+        {notifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="notifications-outline" size={64} color={colors.icon} />
+            <Text style={[styles.emptyText, { color: colors.icon }]}>
+              Chưa có thông báo nào
+            </Text>
+          </View>
+        ) : (
+          notifications.map((notification) => (
+            <TouchableOpacity
+              key={notification.id}
+              style={[
+                styles.notificationItem,
+                { 
+                  backgroundColor: notification.read 
+                    ? colors.background 
+                    : colors.tint + '10' 
+                }
+              ]}
+              onPress={() => handleNotificationPress(notification)}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: colors.tint + '20' }]}>
+                <Ionicons 
+                  name={getIcon(notification.type) as any} 
+                  size={24} 
+                  color={colors.tint} 
+                />
+              </View>
+              <View style={styles.contentContainer}>
+                <Text style={[styles.message, { color: colors.text, fontWeight: '600' }]}>
+                  {notification.message}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={[styles.time, { color: colors.icon }]}>
+                    {formatTime(notification.timestamp)}
+                  </Text>
+                  {notification.type && (
+                    <Text style={[styles.type, { color: colors.icon }]}>
+                      {' • '}{notification.type}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              {!notification.read && (
+                <View style={[styles.unreadDot, { backgroundColor: colors.tint }]} />
+              )}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -120,10 +181,59 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    marginRight: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerButton: {
+    padding: 4,
+  },
+  badge: {
+    backgroundColor: '#ff4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  connectionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    backgroundColor: '#fff3cd',
+    gap: 8,
+  },
+  connectionText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyText: {
+    fontSize: 16,
+    marginTop: 16,
   },
   notificationItem: {
     flexDirection: 'row',

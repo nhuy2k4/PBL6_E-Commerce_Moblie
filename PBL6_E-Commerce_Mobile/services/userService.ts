@@ -5,8 +5,8 @@ import type { User, Order } from '../types';
 /**
  * Get current user profile
  */
-export async function getCurrentUser(token: string): Promise<User> {
-  return fetchWithAuth<User>('/user/me', token, {
+export async function getCurrentUser(): Promise<User> {
+  return fetchWithAuth<User>('/user/me', {
     method: 'GET',
   });
 }
@@ -14,9 +14,9 @@ export async function getCurrentUser(token: string): Promise<User> {
 /**
  * Update user profile
  */
-export async function updateUserProfile(token: string, data: Partial<User>): Promise<User> {
+export async function updateUserProfile(data: Partial<User>): Promise<User> {
   // Backend chưa có endpoint update profile, nếu cần hãy tạo ở backend
-  // return fetchWithAuth<User>('/user/profile', token, {
+  // return fetchWithAuth<User>('/user/profile', {
   //   method: 'PUT',
   //   body: JSON.stringify(data),
   // });
@@ -26,8 +26,8 @@ export async function updateUserProfile(token: string, data: Partial<User>): Pro
 /**
  * Get user's order history
  */
-export async function getUserOrders(token: string): Promise<Order[]> {
-  return fetchWithAuth<Order[]>('/user/orders', token, {
+export async function getUserOrders(): Promise<Order[]> {
+  return fetchWithAuth<Order[]>('/user/orders', {
     method: 'GET',
   });
 }
@@ -35,8 +35,8 @@ export async function getUserOrders(token: string): Promise<Order[]> {
 /**
  * Get order by ID
  */
-export async function getOrderById(token: string, orderId: number): Promise<Order> {
-  return fetchWithAuth<Order>(`/user/orders/${orderId}`, token, {
+export async function getOrderById(orderId: number): Promise<Order> {
+  return fetchWithAuth<Order>(`/user/orders/${orderId}`, {
     method: 'GET',
   });
 }

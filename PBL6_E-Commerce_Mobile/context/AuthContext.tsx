@@ -40,8 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Retry logic for network issues
           while (retryCount < maxRetries) {
             try {
-              // Try to get user info from API
-              const userData = await getCurrentUser(token);
+              // Try to get user info from API (no need to pass token, it's from AsyncStorage)
+              const userData = await getCurrentUser();
               console.log('👤 User data received:', userData);
               
               // Only set user if userData is valid (has id)
