@@ -1,11 +1,21 @@
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
-import messaging from '@react-native-firebase/messaging';
+// import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Check if running in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
+
+// Conditionally import Firebase (only for development builds, not Expo Go)
+let messaging: any = null;
+if (!isExpoGo && Platform.OS !== 'web') {
+  try {
+    messaging = require('@react-native-firebase/messaging').default;
+  } catch (error) {
+    console.warn('⚠️ Firebase messaging not available:', error);
+  }
+}
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -27,8 +37,8 @@ export interface NotificationData {
  * Request notification permissions and get FCM token
  */
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
-  if (isExpoGo) {
-    console.log('⚠️ Running in Expo Go - System notifications not available');
+  if (isExpoGo || !messaging) {
+    console.log('⚠️ Running in Expo Go or Firebase not available - System notifications not available');
     return undefined;
   }
 
@@ -178,7 +188,7 @@ export function addNotificationResponseReceivedListener(
  * Call this in App.tsx or index.js before rendering app
  */
 export function setupFCMBackgroundHandler() {
-  if (isExpoGo) return;
+  if (isExpoGo || !messaging) return;
 
   // Handle background messages
   messaging().setBackgroundMessageHandler(async remoteMessage => {

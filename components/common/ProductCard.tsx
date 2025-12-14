@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+
+import { Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+
 import { Product } from '../../types';
 
 // Thử dùng icon.png có sẵn của Expo trước

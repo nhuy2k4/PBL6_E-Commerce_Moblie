@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants';
-import { sportColors } from '../../constants';
+
+import { Colors , sportColors } from '../../constants';
+
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useCart } from '@/context/CartContext';
 

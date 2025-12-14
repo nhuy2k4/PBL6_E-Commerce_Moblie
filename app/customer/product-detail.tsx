@@ -15,13 +15,39 @@ import { Colors } from '../../styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCart } from '@/context/CartContext';
 import { Product } from '@/types';
-import { getProductById } from '../../services/productService';
+import { getProductById, getProductImages } from '../../services/productService';
 import { useNavigation } from '@react-navigation/native';
+import ReviewSection from '../../components/feature/ReviewSection';
+
 
 export const options = { headerShown: false };
 
+interface VariantImage {
+  id: number;
+  attributeValue: string;
+  imageUrl: string;
+  publicId: string;
+}
+
+interface ProductImagesData {
+  mainImage: string;
+  galleryImages: Array<{
+    id: number;
+    url: string;
+    publicId: string;
+    displayOrder: number;
+    variantAttributeValue: string | null;
+  }>;
+  primaryAttribute: {
+    id: number;
+    name: string;
+    values: string[];
+  } | null;
+  variantImages: { [key: string]: VariantImage };
+}
+
 export default function ProductDetailScreen() {
-  const { productId } = useLocalSearchParams();
+  const { productId, variantId } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -29,6 +55,7 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation();
   
   const [product, setProduct] = useState<Product | null>(null);
+  const [productImagesData, setProductImagesData] = useState<ProductImagesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -36,6 +63,7 @@ export default function ProductDetailScreen() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [currentImages, setCurrentImages] = useState<string[]>([]);
 
   const sizes = React.useMemo(() => {
     if (!product?.variants || product.variants.length === 0) return [];
@@ -44,94 +72,155 @@ export default function ProductDetailScreen() {
     product.variants.forEach((variant: any) => {
       if (variant.variantValues) {
         variant.variantValues.forEach((vv: any) => {
-          if (vv.attributeName === 'Size' || vv.attributeName === 'size') {
+          // Check by productAttributeId = 1 (Size) hoặc attributeName
+          if (vv.productAttributeId === 1 || 
+              vv.attributeName?.toLowerCase().includes('size') ||
+              vv.productAttribute?.name?.toLowerCase().includes('size')) {
             sizeSet.add(vv.value);
           }
         });
       }
     });
     
-    return Array.from(sizeSet);
+    return Array.from(sizeSet).sort((a, b) => {
+      // Sort numerically if possible
+      const numA = parseInt(a);
+      const numB = parseInt(b);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+      return a.localeCompare(b);
+    });
   }, [product?.variants]);
 
   const productColors = React.useMemo(() => {
-    console.log('🔍 Product variants:', product?.variants);
-    if (product?.variants && product.variants.length > 0) {
-      console.log('🔍 First variant structure:', product.variants[0]);
-      console.log('🔍 Variant keys:', Object.keys(product.variants[0]));
+    // Ưu tiên lấy từ primaryAttribute của productImagesData
+    if (productImagesData?.primaryAttribute?.values && productImagesData.primaryAttribute.values.length > 0) {
+      console.log('🎨 Colors from primaryAttribute:', productImagesData.primaryAttribute.values);
+      return productImagesData.primaryAttribute.values;
     }
     
+    // Fallback: lấy từ product variants
+    console.log('🔍 Product variants:', product?.variants);
     if (!product?.variants || product.variants.length === 0) return [];
+    
     const colorSet = new Set<string>();
     
     product.variants.forEach((variant: any) => {
-      console.log('🔍 Processing variant:', variant);
-      
-      // Thử các cách truy cập khác nhau
-      if (variant.color) {
-        colorSet.add(variant.color);
-      }
-      if (variant.attributeValues?.color) {
-        colorSet.add(variant.attributeValues.color);
-      }
       if (variant.variantValues) {
-        console.log('🔍 Variant values:', variant.variantValues);
         variant.variantValues.forEach((vv: any) => {
-          console.log('🔍 Variant value:', vv);
-          if (vv.attributeName?.toLowerCase().includes('color') || 
-              vv.attribute?.toLowerCase().includes('color')) {
+          // Check by productAttributeId = 2 (Color) hoặc attributeName
+          if (vv.productAttributeId === 2 || 
+              vv.attributeName?.toLowerCase().includes('color') || 
+              vv.productAttribute?.name?.toLowerCase().includes('color')) {
             colorSet.add(vv.value);
           }
         });
-      }
-      // Kiểm tra trong sku nếu có pattern như "MUG-GREEN-001"
-      if (variant.sku && typeof variant.sku === 'string') {
-        const skuParts = variant.sku.split('-');
-        if (skuParts.length >= 2) {
-          const possibleColor = skuParts[1].toLowerCase();
-          if (['green', 'beige', 'blue', 'red', 'black', 'white'].includes(possibleColor)) {
-            colorSet.add(possibleColor.charAt(0).toUpperCase() + possibleColor.slice(1));
-          }
-        }
       }
     });
     
     console.log('🔍 Final colors set:', Array.from(colorSet));
     return Array.from(colorSet);
-  }, [product?.variants]);
+  }, [product?.variants, productImagesData?.primaryAttribute]);
 
   const loadProduct = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getProductById(Number(productId));
-      console.log('Product detail raw data:', data);
-      const productObj = data && data.data ? data.data : data;
+      
+      // Load product data first
+      const productData = await getProductById(Number(productId));
+      console.log('Product detail raw data:', productData);
+      
+      const productObj = productData && productData.data ? productData.data : productData;
       console.log('Product detail object for setProduct:', productObj);
       setProduct(productObj);
-      if (productObj.variants && productObj.variants.length > 0) {
-        const defaultVariant = productObj.variants.find((v: any) => 
-          v.variantValues?.some((vv: any) => vv.value === 'L')
-        ) || productObj.variants[0];
-        setSelectedVariantId(defaultVariant.id);
-        
-        // Set default color if available
-        if (defaultVariant.sku && typeof defaultVariant.sku === 'string') {
-          const skuParts = defaultVariant.sku.split('-');
-          if (skuParts.length >= 2) {
-            const possibleColor = skuParts[1].toLowerCase();
-            if (['green', 'beige', 'blue', 'red', 'black', 'white'].includes(possibleColor)) {
-              setSelectedColor(possibleColor.charAt(0).toUpperCase() + possibleColor.slice(1));
-            }
+      
+      // Try to load images (optional - product can work without it)
+      let imagesObj: any = null;
+      try {
+        const imagesData = await getProductImages(Number(productId));
+        console.log('🖼️ Product images data:', imagesData);
+        imagesObj = imagesData && imagesData.data ? imagesData.data : imagesData;
+        setProductImagesData(imagesObj);
+      } catch (imageError) {
+        console.warn('⚠️ Failed to load variant images, using fallback:', imageError);
+      }
+      
+      // Initialize image gallery
+      const initialImages: string[] = [];
+      if (imagesObj?.mainImage) {
+        initialImages.push(imagesObj.mainImage);
+      } else if (productObj.mainImage) {
+        initialImages.push(productObj.mainImage);
+      }
+      
+      if (imagesObj?.galleryImages) {
+        imagesObj.galleryImages.forEach((img: any) => {
+          if (img.url && !img.variantAttributeValue) {
+            initialImages.push(img.url);
           }
+        });
+      } else if (productObj.images && Array.isArray(productObj.images)) {
+        initialImages.push(...productObj.images);
+      }
+      
+      setCurrentImages(initialImages);
+      
+      if (productObj.variants && productObj.variants.length > 0) {
+        let selectedVariant;
+        
+        // Nếu có variantId từ URL (từ order detail), tìm variant đó
+        if (variantId) {
+          selectedVariant = productObj.variants.find((v: any) => v.id === Number(variantId));
+          console.log('🎯 Found variant from order:', selectedVariant);
+        }
+        
+        // Nếu không tìm thấy, dùng default variant
+        if (!selectedVariant) {
+          selectedVariant = productObj.variants.find((v: any) => 
+            v.variantValues?.some((vv: any) => vv.value === 'L')
+          ) || productObj.variants[0];
+        }
+        
+        setSelectedVariantId(selectedVariant.id);
+        
+        // Auto-select size và color từ variant
+        let autoSelectedColor: string | null = null;
+        if (selectedVariant.variantValues) {
+          selectedVariant.variantValues.forEach((vv: any) => {
+            // Check for Size (productAttributeId = 1)
+            if (vv.productAttributeId === 1 ||
+                vv.attributeName?.toLowerCase().includes('size') ||
+                vv.productAttribute?.name?.toLowerCase().includes('size')) {
+              setSelectedSize(vv.value);
+              console.log('🎯 Auto-selected size:', vv.value);
+            }
+            // Check for Color (productAttributeId = 2)
+            if (vv.productAttributeId === 2 ||
+                vv.attributeName?.toLowerCase().includes('color') ||
+                vv.productAttribute?.name?.toLowerCase().includes('color')) {
+              autoSelectedColor = vv.value;
+              setSelectedColor(vv.value);
+              console.log('🎯 Auto-selected color:', vv.value);
+            }
+          });
+        }
+        
+        // Update images for auto-selected color (if variant images available)
+        if (autoSelectedColor && imagesObj?.variantImages && imagesObj.variantImages[autoSelectedColor]) {
+          const variantImage = imagesObj.variantImages[autoSelectedColor].imageUrl;
+          const updatedImages = [variantImage, ...initialImages];
+          setCurrentImages(updatedImages);
+          setSelectedImage(0);
         }
       }
     } catch (error) {
-      console.error('Error loading product:', error);
-      Alert.alert('Error', 'Failed to load product details');
+      console.error('❌ Error loading product:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin sản phẩm');
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, variantId]);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -157,11 +246,6 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const productImages: string[] = [];
-  if (typeof product.mainImage === 'string' && product.mainImage) productImages.push(product.mainImage);
-  if (Array.isArray(product.images)) productImages.push(...product.images.filter(img => typeof img === 'string' && img));
-  if (typeof product.imageUrl === 'string' && product.imageUrl) productImages.push(product.imageUrl);
-
   const cheapestVariant = product.variants?.reduce((min, v) =>
     v.price < min.price ? v : min
   , product.variants?.[0]);
@@ -171,17 +255,54 @@ export default function ProductDetailScreen() {
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
     
-    // Find variant matching the selected size
+    // Find variant matching both selected size and color
     if (product?.variants && product.variants.length > 0) {
-      const matchingVariant = product.variants.find((v: any) => 
-        v.variantValues?.some((vv: any) => vv.value === size)
-      );
+      const matchingVariant = product.variants.find((v: any) => {
+        const hasSize = v.variantValues?.some((vv: any) => 
+          (vv.productAttributeId === 1 || 
+           vv.attributeName?.toLowerCase().includes('size') ||
+           vv.productAttribute?.name?.toLowerCase().includes('size')) && 
+          vv.value === size
+        );
+        
+        // Nếu có chọn color, phải khớp cả size và color
+        if (selectedColor) {
+          const hasColor = v.variantValues?.some((vv: any) => 
+            (vv.productAttributeId === 2 ||
+             vv.attributeName?.toLowerCase().includes('color') ||
+             vv.productAttribute?.name?.toLowerCase().includes('color')) &&
+            vv.value === selectedColor
+          );
+          return hasSize && hasColor;
+        }
+        
+        // Nếu chưa chọn color, chỉ cần khớp size
+        return hasSize;
+      });
       
       if (matchingVariant) {
         setSelectedVariantId(matchingVariant.id);
+        console.log('🎯 Selected variant:', matchingVariant.id, 'size:', size, 'color:', selectedColor);
+        
+        // Auto-update color nếu chưa chọn
+        if (!selectedColor && matchingVariant.variantValues) {
+          const colorValue = matchingVariant.variantValues.find((vv: any) => 
+            vv.productAttributeId === 2 ||
+            vv.attributeName?.toLowerCase().includes('color') ||
+            vv.productAttribute?.name?.toLowerCase().includes('color')
+          );
+          if (colorValue) {
+            setSelectedColor(colorValue.value);
+          }
+        }
       } else {
-        // If no matching variant for this size, use first variant
-        setSelectedVariantId(product.variants[0].id);
+        // If no matching variant for this combination, use first variant with this size
+        const sizeVariant = product.variants.find((v: any) => 
+          v.variantValues?.some((vv: any) => vv.value === size)
+        );
+        if (sizeVariant) {
+          setSelectedVariantId(sizeVariant.id);
+        }
       }
     }
   };
@@ -239,12 +360,15 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Product Image Section */}
         <View style={styles.imageSection}>
-          {/* Đảm bảo truyền đúng string uri cho Image */}
+          {/* Main Image - use currentImages */}
           {(() => {
-            const imageUri = productImages[selectedImage];
+            const imageUri = currentImages.length > 0 ? currentImages[selectedImage] : product.mainImage;
             const isValidUri = typeof imageUri === 'string' && !!imageUri;
             return (
               <Image
@@ -259,15 +383,15 @@ export default function ProductDetailScreen() {
             );
           })()}
           
-          {/* Thumbnail Images */}
-          {productImages.length > 1 && (
+          {/* Thumbnail Images - use currentImages */}
+          {currentImages.length > 1 && (
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
               style={styles.thumbnailContainer}
               contentContainerStyle={styles.thumbnailContent}
             >
-              {productImages.map((img: string, index: number) => (
+              {currentImages.map((img: string, index: number) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => setSelectedImage(index)}
@@ -295,7 +419,17 @@ export default function ProductDetailScreen() {
               </Text>
             </View>
             <Text style={styles.price}>
-              {displayPrice.toLocaleString('vi-VN')}₫
+              {(() => {
+                // Hiển thị giá của variant đã chọn nếu có
+                if (selectedVariantId && product.variants) {
+                  const currentVariant = product.variants.find((v: any) => v.id === selectedVariantId);
+                  if (currentVariant && currentVariant.price) {
+                    return currentVariant.price.toLocaleString('vi-VN') + '₫';
+                  }
+                }
+                // Fallback về displayPrice
+                return displayPrice.toLocaleString('vi-VN') + '₫';
+              })()}
             </Text>
           </View>
 
@@ -338,14 +472,70 @@ export default function ProductDetailScreen() {
                     onPress={() => {
                       console.log('🎨 Color selected:', color);
                       setSelectedColor(color);
-                      // Handle color selection
-                      const matchingVariant = product?.variants?.find((v: any) => 
-                        v.variantValues?.some((vv: any) => vv.value === color) ||
-                        v.sku?.toLowerCase().includes(color.toLowerCase())
-                      );
+                      
+                      // Update images for selected color (if available)
+                      if (productImagesData?.variantImages && productImagesData.variantImages[color]) {
+                        const variantImage = productImagesData.variantImages[color].imageUrl;
+                        const baseImages: string[] = [];
+                        
+                        // Get base images (mainImage + gallery images)
+                        if (productImagesData.mainImage) baseImages.push(productImagesData.mainImage);
+                        if (productImagesData.galleryImages) {
+                          productImagesData.galleryImages.forEach((img: any) => {
+                            if (img.url && !img.variantAttributeValue) {
+                              baseImages.push(img.url);
+                            }
+                          });
+                        }
+                        
+                        // Put variant image first
+                        const updatedImages = [variantImage, ...baseImages];
+                        setCurrentImages(updatedImages);
+                        setSelectedImage(0);
+                        console.log('🖼️ Updated images for color:', color);
+                      } else {
+                        console.log('⚠️ No variant image for color:', color, '- using default images');
+                      }
+                      
+                      // Tìm variant khớp cả color và size đã chọn
+                      const matchingVariant = product?.variants?.find((v: any) => {
+                        const hasColor = v.variantValues?.some((vv: any) => 
+                          (vv.productAttributeId === 2 ||
+                           vv.attributeName?.toLowerCase().includes('color') ||
+                           vv.productAttribute?.name?.toLowerCase().includes('color')) &&
+                          vv.value === color
+                        );
+                        
+                        // Nếu có chọn size, phải khớp cả color và size
+                        if (selectedSize) {
+                          const hasSize = v.variantValues?.some((vv: any) => 
+                            (vv.productAttributeId === 1 ||
+                             vv.attributeName?.toLowerCase().includes('size') ||
+                             vv.productAttribute?.name?.toLowerCase().includes('size')) &&
+                            vv.value === selectedSize
+                          );
+                          return hasColor && hasSize;
+                        }
+                        
+                        // Nếu chưa chọn size, chỉ cần khớp color
+                        return hasColor;
+                      });
+                      
                       if (matchingVariant) {
                         setSelectedVariantId(matchingVariant.id);
-                        console.log('🎨 Matching variant:', matchingVariant);
+                        console.log('🎯 Selected variant:', matchingVariant.id, 'color:', color, 'size:', selectedSize);
+                        
+                        // Auto-update size nếu chưa chọn
+                        if (!selectedSize && matchingVariant.variantValues) {
+                          const sizeValue = matchingVariant.variantValues.find((vv: any) => 
+                            vv.productAttributeId === 1 ||
+                            vv.attributeName?.toLowerCase().includes('size') ||
+                            vv.productAttribute?.name?.toLowerCase().includes('size')
+                          );
+                          if (sizeValue) {
+                            setSelectedSize(sizeValue.value);
+                          }
+                        }
                       }
                     }}
                     style={[
@@ -358,11 +548,53 @@ export default function ProductDetailScreen() {
                       styles.sizeButtonText,
                       selectedColor === color && styles.sizeButtonTextActive,
                     ]}>{color}</Text>
+
+                    {/* Indicator nếu có ảnh variant */}
+                    {productImagesData?.variantImages?.[color] && (
+                      <View style={styles.imageIndicator}>
+                        <Ionicons name="image" size={12} color={selectedColor === color ? "#FFF" : "#1976D2"} />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           )}
+
+          {/* Variant Info - SKU & Stock */}
+          {selectedVariantId && product.variants && (() => {
+                const currentVariant = product.variants.find((v: any) => v.id === selectedVariantId);
+                if (!currentVariant) return null;
+                
+                return (
+                  <View style={styles.variantInfoContainer}>
+                    <View style={styles.variantInfoRow}>
+                      <Ionicons name="barcode-outline" size={16} color="#666" />
+                      <Text style={styles.variantInfoLabel}>Mã sản phẩm: </Text>
+                      <Text style={styles.variantInfoValue}>{currentVariant.sku || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.variantInfoRow}>
+                      <Ionicons name="cube-outline" size={16} color="#666" />
+                      <Text style={styles.variantInfoLabel}>Tồn kho: </Text>
+                      <Text style={[
+                        styles.variantInfoValue,
+                        currentVariant.stock > 0 ? styles.inStock : styles.outOfStock
+                      ]}>
+                        {currentVariant.stock} sản phẩm
+                      </Text>
+                    </View>
+                    {currentVariant.price && (
+                      <View style={styles.variantInfoRow}>
+                        <Ionicons name="pricetag-outline" size={16} color="#666" />
+                        <Text style={styles.variantInfoLabel}>Giá: </Text>
+                        <Text style={styles.variantPriceValue}>
+                          {currentVariant.price.toLocaleString('vi-VN')}đ
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
 
           {/* Quantity Selector */}
           <View style={styles.quantitySection}>
@@ -394,6 +626,11 @@ export default function ProductDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+
+        {/* Reviews Section */}
+        {product && (<ReviewSection productId={product.id} />)}
+
       </ScrollView>
 
       {/* Bottom Action Buttons */}
@@ -402,12 +639,9 @@ export default function ProductDetailScreen() {
           style={styles.addToCartButton}
           onPress={handleAddToCart}
         >
-          <Ionicons name="add" size={24} color="#1A1A1A" />
-          <Text style={styles.addToCartText}>Add To Cart</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.buyNowButton}
-          onPress={handleBuyNow}
         >
           <Ionicons name="bag-handle" size={20} color="#FFF" />
           <Text style={styles.buyNowText}>Buy Now</Text>
@@ -422,6 +656,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -487,7 +725,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     paddingHorizontal: 20,
     paddingTop: 24,
-    paddingBottom: 120,
+    paddingBottom: 24,
   },
   productHeader: {
     flexDirection: 'row',
@@ -549,6 +787,52 @@ const styles = StyleSheet.create({
   sizeButtonTextActive: {
     color: '#FFF',
   },
+
+  imageIndicator: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 10,
+    padding: 2,
+  },
+  variantInfoSection: {
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  variantInfoContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    borderColor: '#E0E0E0',
+  },
+  variantInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  variantInfoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  variantInfoValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+  },
+  inStock: {
+    color: '#4CAF50',
+  },
+  outOfStock: {
+    color: '#F44336',
+  },
+  variantPriceValue: {
+    fontSize: 16,
+    color: '#1976D2',
+    fontWeight: 'bold',
+  },
+
   quantitySection: {
     marginBottom: 20,
   },
@@ -565,7 +849,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#FFF',
   },
   quantityText: {

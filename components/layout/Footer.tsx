@@ -4,8 +4,9 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { Colors } from '../styles/theme';
-import { useColorScheme } from '../hooks/use-color-scheme';
+
+import { Colors } from '@/styles/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function Footer() {
   const colorScheme = useColorScheme();

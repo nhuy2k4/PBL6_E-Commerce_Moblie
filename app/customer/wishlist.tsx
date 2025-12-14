@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import { Colors } from '../../styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import ProductCard from '@/components/ProductCard';
+
+import {ProductCard} from '@/components/ProductCard';
+
 
 export default function WishlistScreen() {
   const colorScheme = useColorScheme();
@@ -57,8 +59,9 @@ export default function WishlistScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={wishlistItems}
-        renderItem={({ item }) => <ProductCard product={item} />}
-        keyExtractor={(item) => item.id.toString()}
+
+        renderItem={({ item }) => <ProductCard product={item} onPress={() => {}} />}
+        keyExtractor={(item: any) => item.id?.toString() || Math.random().toString()}
         numColumns={2}
         contentContainerStyle={styles.list}
       />

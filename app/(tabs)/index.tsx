@@ -5,12 +5,16 @@ import {
   StyleSheet,
   RefreshControl,
   Text,
+
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/styles/theme';
 import HomeHeader from '@/components/home/HomeHeader';
 import PromoBanner from '@/components/home/PromoBanner';
+// import BannerCarousel from '@/components/home/BannerCarousel';
+import QuickActions from '@/components/home/QuickActions';
+
 import FlashSaleSection from '@/components/home/FlashSaleSection';
 import BestSellerSection from '@/components/home/BestSellerSection';
 import NewArrivalSection from '@/components/home/NewArrivalSection';
@@ -58,13 +62,15 @@ export default function HomeScreen() {
         }
       >
         {/* Category List */}
-        <View style={styles.section}>
+
+        {/* Banner Carousel */}
+        {/* <View style={styles.section}>
           <CategoryList />
         </View>
 
-        {/* Promo Banner */}
+        {/* Quick Actions */}
         <View style={styles.section}>
-          <PromoBanner />
+          <QuickActions />
         </View>
 
         {/* Flash Sale Section */}
@@ -78,6 +84,10 @@ export default function HomeScreen() {
 
         {/* New Arrival Section */}
         <NewArrivalSection />
+
+
+        {/* Product Explorer */}
+        <ProductExplorer />
 
         {/* Service Features */}
         <ServiceFeatures />
@@ -93,17 +103,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  welcomeContainer: {
-    padding: 16,
-    paddingTop: 8,
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
   section: {
     paddingHorizontal: 16,
-    marginBottom: 16,
   },
   bottomSpacing: {
     height: 32,

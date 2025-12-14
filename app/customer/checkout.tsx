@@ -9,10 +9,15 @@ import { getSportyPayWallet, payWithSportyPay } from '@/services/sportyPayServic
 import { ShippingAddressSection } from '../components/feature/checkout/ShippingAddressSection';
 import { ShippingMethodSection } from '../components/feature/checkout/ShippingMethodSection';
 import { OrderItemsSection } from '../components/feature/checkout/OrderItemsSection';
+
+import { VoucherSection } from '../components/feature/checkout/VoucherSection';
+
 import { PaymentMethodSection } from '../components/feature/checkout/PaymentMethodSection';
 import { OrderNoteSection } from '../components/feature/checkout/OrderNoteSection';
 import { CheckoutFooter } from '../components/feature/checkout/CheckoutFooter';
 import { formatPrice, formatWeight, getTotalWeight } from '../components/feature/checkout/checkoutUtils';
+import { Voucher, calculateVoucherDiscount } from '@/services/voucherService';
+
 
 /**
  * Convert MoMo web payment URL to deep link for direct app opening
@@ -143,6 +148,10 @@ export default function Checkout() {
   const [calculatedShippingFee, setCalculatedShippingFee] = useState<number>(0);
   const lastAlertedAddressRef = useRef<number | null>(null);
   
+
+  // Voucher state
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
+  
   // Handle URL scheme when returning from MoMo payment
   useEffect(() => {
     const handleUrl = (event: any) => {
@@ -235,7 +244,14 @@ export default function Checkout() {
   }, [checkoutItems]);
 
   const shippingFee = calculatedShippingFee || 0;
-  const voucherDiscount = 0;
+
+  
+  // Tính giảm giá từ voucher
+  const voucherDiscount = useMemo(() => {
+    if (!selectedVoucher) return 0;
+    return calculateVoucherDiscount(selectedVoucher, subtotal + shippingFee);
+  }, [selectedVoucher, subtotal, shippingFee]);
+  
   const finalTotal = subtotal + shippingFee - voucherDiscount;
 
   // Load provinces on mount
@@ -244,7 +260,7 @@ export default function Checkout() {
       setLoadingProvinces(true);
       try {
         const result = await getProvinces();
-        setProvinces(result);
+        setProvinces(result as any[]);
       } catch (error) {
         console.error('Error loading provinces:', error);
         Alert.alert('Lỗi', 'Không thể tải danh sách tỉnh/thành phố');
@@ -283,8 +299,9 @@ export default function Checkout() {
 
       setLoadingDistricts(true);
       try {
-        const result = await getDistricts(shippingAddress.province);
-        setDistricts(result);
+
+        const result = await getDistricts(Number(shippingAddress.province));
+        setDistricts(result as any[]);
       } catch (error) {
         console.error('Error loading districts:', error);
         Alert.alert('Lỗi', 'Không thể tải danh sách quận/huyện');
@@ -306,8 +323,8 @@ export default function Checkout() {
 
       setLoadingWards(true);
       try {
-        const result = await getWards(shippingAddress.district);
-        setWards(result);
+        const result = await getWards(Number(shippingAddress.district));
+        setWards(result as any[]);
       } catch (error) {
         console.error('Error loading wards:', error);
         Alert.alert('Lỗi', 'Không thể tải danh sách phường/xã');
@@ -465,8 +482,30 @@ export default function Checkout() {
     try {
       const shopId = checkoutItems[0]?.shopId || 1;
       const cartItemIds = checkoutItems.map((item: any) => item.id);
+      const productIds = checkoutItems.map((item: any) => item.productId || item.id);
 
-      // GỌI API ĐẶT HÀNG Ở ĐÂY
+      // ÁP DỤNG VOUCHER NẾU CÓ (tăng usedCount)
+      let voucherCode: string | undefined = undefined;
+      if (selectedVoucher) {
+        try {
+          console.log('🎫 Applying voucher:', selectedVoucher.code);
+          const { applyVoucher } = require('@/services/voucherService');
+          await applyVoucher({
+            voucherCode: selectedVoucher.code,
+            productIds,
+            cartTotal: subtotal + shippingFee,
+          });
+          voucherCode = selectedVoucher.code;
+          console.log('✅ Voucher applied successfully');
+        } catch (voucherError: any) {
+          console.error('❌ Voucher apply error:', voucherError);
+          Alert.alert('Lỗi áp dụng voucher', voucherError.message || 'Không thể áp dụng voucher. Vui lòng thử lại.');
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      // GỌI API ĐẶT HÀNG
       const orderResponse = await confirmCheckout({
         shopId,
         addressId: addressObj.id,
@@ -475,6 +514,7 @@ export default function Checkout() {
         cartItemIds,
         paymentMethod,
         note: orderNotes,
+        voucherCode, // Truyền voucher code vào đơn hàng
       });
 
       // Handle payment
@@ -770,6 +810,14 @@ export default function Checkout() {
           formatWeight={formatWeight}
         />
         <OrderItemsSection checkoutItems={checkoutItems} />
+
+        <VoucherSection
+          selectedVoucher={selectedVoucher}
+          onSelectVoucher={setSelectedVoucher}
+          orderTotal={subtotal + shippingFee}
+          shopId={checkoutItems[0]?.shopId || 1}
+          productIds={checkoutItems.map((item: any) => item.productId || item.id)}
+        />
         <PaymentMethodSection 
           paymentMethod={paymentMethod} 
           setPaymentMethod={setPaymentMethod} 

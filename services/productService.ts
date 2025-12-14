@@ -134,6 +134,49 @@ export async function getCategoryById(id: number): Promise<any> {
   return response.data || response;
 }
 
+
+/**
+ * Get product images including variant images
+ */
+export async function getProductImages(productId: number): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(`products/${productId}/images`));
+    console.log('🖼️ getProductImages response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching product images:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get primary attribute for product variants
+ */
+export async function getPrimaryAttribute(productId: number): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(`products/${productId}/images/primary-attribute`));
+    console.log('🎨 getPrimaryAttribute response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching primary attribute:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get variant attribute values
+ */
+export async function getVariantValues(productId: number): Promise<any> {
+  try {
+    const response = await fetchApi(buildUrl(`products/${productId}/images/variant/values`));
+    console.log('🎯 getVariantValues response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching variant values:', error);
+    throw error;
+  }
+}
+
 // Legacy aliases
 export const getAllProducts = getProducts;
 export const fetchAllProducts = getProducts;

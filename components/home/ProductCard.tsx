@@ -1,9 +1,11 @@
 
 import React from 'react';
-// Import ảnh mặc định bằng biến để Expo bundle asset
-const defaultProductImage = require('../../assets/images/default-product.png');
+
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import type { Product } from '../../types';
+// Import ảnh mặc định bằng biến để Expo bundle asset
+const defaultProductImage = require('../../assets/images/default-product.png');
+
 
 // Sử dụng ngrok URL thực tế
 const BASE_IMAGE_URL = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/images/';

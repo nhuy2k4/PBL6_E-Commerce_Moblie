@@ -72,12 +72,14 @@ export async function getOrderDetail(orderId: number): Promise<any> {
 }
 
 /**
- * Cancel an order
+
+ * Cancel an order with reason
  */
-export async function cancelOrder(orderId: number): Promise<any> {
+export async function cancelOrder(orderId: number, reason?: string): Promise<any> {
   try {
-    const response = await fetchApi(buildUrl(API_ENDPOINTS.ORDER.CANCEL, orderId), {
-      method: 'PUT',
+    const response = await fetchApi(buildUrl(API_ENDPOINTS.ORDER.CANCEL(orderId)), {
+      method: 'POST',
+      body: JSON.stringify(reason || ''),
     });
     console.log('✅ cancelOrder response:', response);
     return response;
@@ -185,6 +187,8 @@ export async function confirmCheckout(data: {
   cartItemIds: number[];
   paymentMethod: string;
   note?: string;
+
+  voucherCode?: string;
 }): Promise<any> {
   try {
     const response = await fetchApi(buildUrl(API_ENDPOINTS.CHECKOUT.CONFIRM), {
