@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../constants/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Shared fetch utility for API requests
