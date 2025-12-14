@@ -173,6 +173,13 @@ Project này sử dụng **Expo Router** cho navigation, cho phép file-based ro
 - `app/_layout.tsx` - Root layout wrapper
 - `app/modal.tsx` - Modal screens
 
+Nếu chạy bằng ngrok:
+
+- Tải ngrok
+- Mở ngrok.exe
+- Chạy lệnh ngrok http https://localhost:8081
+- Sửa trong constants/config.ts thay đổi => BASE_URL: process.env.EXPO_PUBLIC_API_URL || '{link ngrok}/api/'
+
 ## 🤝 Contributing
 
 1. Fork the project
@@ -201,3 +208,4 @@ This project is licensed under the MIT License.
 ## 📞 Support
 
 Liên hệ support qua email hoặc tạo issue trên GitHub repository.
+
