@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -76,6 +76,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
 
   // Nút chuyển sang kênh Người Bán đặt ở trên cùng
   const handleSwitchToSeller = () => {
@@ -100,7 +101,16 @@ export default function ProfileScreen() {
         // TODO: Navigate to viewed items
         break;
       case 'settings':
-        // TODO: Navigate to settings
+        setSettingsExpanded(!settingsExpanded);
+        break;
+      case 'settings-profile':
+        router.push('/me/profile');
+        break;
+      case 'settings-addresses':
+        router.push('/me/addresses');
+        break;
+      case 'settings-password':
+        router.push('/me/change-password');
         break;
       case 'help':
         // TODO: Navigate to help
@@ -182,28 +192,64 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Đơn hàng & Tài khoản</Text>
           {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, { borderBottomColor: colors.icon + '20' }]}
-              onPress={() => handleMenuPress(item.id)}
-            >
-              <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '10' }]}> 
-                <Ionicons name={item.icon as any} size={24} color={colors.tint} />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={[styles.menuTitle, { color: colors.text }]}>
-                  {item.title}
-                </Text>
-                {item.subtitle && (
-                  <Text style={[styles.menuSubtitle, { color: colors.icon }]}>
-                    {item.subtitle}
+            <View key={item.id}>
+              <TouchableOpacity
+                style={[styles.menuItem, { borderBottomColor: colors.icon + '20' }]}
+                onPress={() => handleMenuPress(item.id)}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '10' }]}> 
+                  <Ionicons name={item.icon as any} size={24} color={colors.tint} />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={[styles.menuTitle, { color: colors.text }]}>
+                    {item.title}
                   </Text>
-                )}
-              </View>
-              {item.showArrow && (
-                <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+                  {item.subtitle && (
+                    <Text style={[styles.menuSubtitle, { color: colors.icon }]}>
+                      {item.subtitle}
+                    </Text>
+                  )}
+                </View>
+                {item.id === 'settings' ? (
+                  <Ionicons 
+                    name={settingsExpanded ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={colors.icon} 
+                  />
+                ) : item.showArrow ? (
+                  <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+                ) : null}
+              </TouchableOpacity>
+              
+              {/* Submenu for Settings */}
+              {item.id === 'settings' && settingsExpanded && (
+                <View style={[styles.submenuContainer, { backgroundColor: colors.icon + '08' }]}>
+                  <TouchableOpacity
+                    style={[styles.submenuItem, { borderBottomColor: colors.icon + '20' }]}
+                    onPress={() => handleMenuPress('settings-profile')}
+                  >
+                    <Text style={[styles.submenuText, { color: colors.text }]}>Tài khoản của tôi</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.icon} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.submenuItem, { borderBottomColor: colors.icon + '20' }]}
+                    onPress={() => handleMenuPress('settings-addresses')}
+                  >
+                    <Text style={[styles.submenuText, { color: colors.text }]}>Địa chỉ</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.icon} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.submenuItem, { borderBottomColor: colors.icon + '20' }]}
+                    onPress={() => handleMenuPress('settings-password')}
+                  >
+                    <Text style={[styles.submenuText, { color: colors.text }]}>Thay đổi mật khẩu</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.icon} />
+                  </TouchableOpacity>
+                </View>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -338,6 +384,20 @@ const styles = StyleSheet.create({
   sellerSwitchBtnText: {
     color: '#007bff',
     fontWeight: 'bold',
+    fontSize: 15,
+  },
+  submenuContainer: {
+    paddingLeft: 52,
+  },
+  submenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingRight: 16,
+    borderBottomWidth: 1,
+  },
+  submenuText: {
     fontSize: 15,
   },
 });

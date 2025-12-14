@@ -39,17 +39,46 @@ export async function getAddresses(): Promise<Address[]> {
   }
 }
 
-
-export async function addAddress(address: Address): Promise<void> {
-  // TODO: Implement POST /api/me/addresses
+/**
+ * Add new address
+ * POST /api/me/addresses
+ */
+export async function addAddress(address: Omit<Address, 'id' | 'createdAt'>): Promise<Address> {
+  return await fetchPrivate('/me/addresses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(address)
+  });
 }
 
-
-export async function updateAddress(address: Address): Promise<void> {
-  // TODO: Implement PUT /api/me/addresses/{id}
+/**
+ * Update existing address
+ * PUT /api/me/addresses/{id}
+ */
+export async function updateAddress(addressId: number, address: Omit<Address, 'id' | 'createdAt'>): Promise<Address> {
+  return await fetchPrivate(`/me/addresses/${addressId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(address)
+  });
 }
 
+/**
+ * Set address as primary
+ * POST /api/me/addresses/{id}/primary
+ */
+export async function setPrimaryAddress(addressId: number): Promise<Address> {
+  return await fetchPrivate(`/me/addresses/${addressId}/primary`, {
+    method: 'POST'
+  });
+}
 
+/**
+ * Delete address
+ * DELETE /api/me/addresses/{id}
+ */
 export async function deleteAddress(addressId: number): Promise<void> {
-  // TODO: Implement DELETE /api/me/addresses/{id}
+  await fetchPrivate(`/me/addresses/${addressId}`, {
+    method: 'DELETE'
+  });
 }
