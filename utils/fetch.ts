@@ -32,7 +32,6 @@ export async function fetchPublic<T>(endpoint: string, options?: RequestInit): P
 
 export async function fetchPrivate<T>(endpoint: string, options?: RequestInit): Promise<T> {
   // Get token from AsyncStorage
-  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
   const token = await AsyncStorage.getItem('token');
   
   if (!token) {
