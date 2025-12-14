@@ -304,9 +304,11 @@ const OrderDetailPage = () => {
               style={styles.itemCard}
               activeOpacity={0.7}
               onPress={() => {
-                console.log('🔍 Product clicked, productId:', item.productId);
+                console.log('🔍 Product clicked, productId:', item.productId, 'variantId:', item.variantId);
                 if (item.productId && !isNaN(item.productId)) {
-                  router.push(`/customer/product-detail?productId=${item.productId}`);
+                  // Truyền cả variantId để auto-select variant đã mua
+                  const url = `/customer/product-detail?productId=${item.productId}${item.variantId ? `&variantId=${item.variantId}` : ''}`;
+                  router.push(url);
                 } else {
                   console.error('❌ Invalid productId on click:', item.productId);
                   Alert.alert('Lỗi', 'ID sản phẩm không hợp lệ');
