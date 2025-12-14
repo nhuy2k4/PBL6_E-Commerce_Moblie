@@ -3,12 +3,13 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect } from 'react';
-import { Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
 import { configureGoogleSignIn } from '@/services/nativeGoogleAuth';
+import { registerForPushNotificationsAsync, setupFCMHandlers } from '@/services/notificationService';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -21,6 +22,27 @@ export default function RootLayout() {
   // Configure Google Sign-In on app start
   useEffect(() => {
     configureGoogleSignIn();
+  }, []);
+
+  // Setup FCM handlers on app start
+  useEffect(() => {
+    console.log('🔔 Setting up FCM handlers...');
+    const unsubscribe = setupFCMHandlers();
+    
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  // Show FCM token in Alert on app start
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => {
+      if (token) {
+        Alert.alert('FCM Token', token);
+      }
+    });
   }, []);
 
   // Handle deep links for payment results

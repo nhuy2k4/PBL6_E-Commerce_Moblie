@@ -7,8 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export async function saveFCMTokenToBackend(fcmToken: string, userId: number): Promise<boolean> {
   try {
-    const token = await AsyncStorage.getItem('token');
-    
     const response = await axios.post(
       `${API_CONFIG.BASE_URL}/fcm/register`,
       {
@@ -19,7 +17,6 @@ export async function saveFCMTokenToBackend(fcmToken: string, userId: number): P
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       }

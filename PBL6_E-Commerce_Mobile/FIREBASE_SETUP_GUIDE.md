@@ -38,15 +38,14 @@
 ## Bước 6: Cấu hình trong app.json
 
 File `google-services.json` đã được thêm vào config trong `app.json`:
+
 ```json
 {
   "expo": {
     "android": {
       "googleServicesFile": "./google-services.json"
     },
-    "plugins": [
-      "@react-native-firebase/app"
-    ]
+    "plugins": ["@react-native-firebase/app"]
   }
 }
 ```

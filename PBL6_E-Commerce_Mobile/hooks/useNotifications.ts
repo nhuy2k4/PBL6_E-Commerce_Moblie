@@ -1,23 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
-import { API_CONFIG } from '../constants/config';
 import { 
-  showLocalNotification, 
   registerForPushNotificationsAsync,
-  addNotificationResponseReceivedListener 
+  addNotificationResponseReceivedListener,
+  getSavedFCMToken
 } from '../services/notificationService';
-
-// Polyfill for React Native
-if (typeof global.TextEncoder === 'undefined') {
-  const { TextEncoder, TextDecoder } = require('text-encoding');
-  global.TextEncoder = TextEncoder;
-  global.TextDecoder = TextDecoder;
-}
-
-// Generate unique ID for each connection
-const generateClientId = () => Math.random().toString(36).substring(2, 11);
+import { saveFCMTokenToBackend } from '../services/fcmService';
 
 // Type definitions
 interface Notification {
@@ -42,24 +30,45 @@ interface UseNotificationsReturn {
 }
 
 /**
- * Custom hook to manage notifications with WebSocket using SockJS
+ * Custom hook to manage notifications with FCM
  */
 export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BUYER'): UseNotificationsReturn {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const stompClientRef = useRef<Client | null>(null);
-  const clientIdRef = useRef(generateClientId());
+  const [isConnected, setIsConnected] = useState(true); // Always connected with FCM
 
-  // Request notification permissions on mount
+  // Request notification permissions and save token to backend
   useEffect(() => {
-    registerForPushNotificationsAsync().catch(err => 
-      console.error('❌ Failed to register for push notifications:', err)
-    );
+    if (!userId) return;
+
+    const setupNotifications = async () => {
+      try {
+        // Register for push notifications and get FCM token
+        const fcmToken = await registerForPushNotificationsAsync();
+        
+        if (fcmToken) {
+          // Save FCM token to backend (ignore errors if user not logged in yet)
+          const saved = await saveFCMTokenToBackend(fcmToken, userId);
+          if (saved) {
+            console.log('✅ FCM token saved to backend');
+            setIsConnected(true);
+          } else {
+            console.warn('⚠️ Failed to save FCM token to backend (will retry after login)');
+            // Still set connected to true since FCM token was obtained
+            setIsConnected(true);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Failed to setup notifications:', err);
+        // Don't set isConnected to false if only backend save failed
+        setIsConnected(true);
+      }
+    };
+
+    setupNotifications();
 
     // Listen for notification taps
     const subscription = addNotificationResponseReceivedListener(response => {
       console.log('📱 User tapped notification:', response);
-      // Handle navigation based on notification data
       const data = response.notification.request.content.data;
       if (data?.orderId) {
         console.log('📦 Navigate to order:', data.orderId);
@@ -68,7 +77,7 @@ export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BU
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [userId]);
 
   // Load notifications from AsyncStorage
   useEffect(() => {
@@ -104,116 +113,6 @@ export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BU
       console.error('❌ Error saving notifications:', error);
     }
   };
-
-  // Connect to WebSocket using SockJS
-  useEffect(() => {
-    if (!userId) {
-      console.log('⚠️ No userId provided, skipping WebSocket connection');
-      return;
-    }
-
-    const clientId = clientIdRef.current;
-    console.log(`🔌 [${role}] [${clientId}] Connecting to WebSocket for user: ${userId}`);
-
-    // Get base URL and construct SockJS endpoint
-    const baseUrl = API_CONFIG.BASE_URL.replace(/\/api\/?$/, '');
-    const sockJsUrl = `${baseUrl}/ws`;
-    
-    console.log(`🔌 Base URL: ${API_CONFIG.BASE_URL}`);
-    console.log(`🔌 SockJS URL: ${sockJsUrl}`);
-
-    try {
-      // Create STOMP client with SockJS
-      const client = new Client({
-        webSocketFactory: () => new SockJS(sockJsUrl) as any,
-        debug: (str) => {
-          // Uncomment for debugging
-          // console.log('🔍 STOMP:', str);
-        },
-        reconnectDelay: 5000,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
-        onConnect: (frame) => {
-          console.log(`✅ [${role}] [${clientId}] WebSocket connected`);
-          setIsConnected(true);
-
-          // Subscribe to user's notification channel
-          const channel = `/topic/orderws/${userId}`;
-          console.log(`🔌 Will subscribe to: ${channel}`);
-
-          client.subscribe(channel, async (message) => {
-            try {
-              console.log(`📬 [${clientId}] Received message`);
-              
-              const notification = JSON.parse(message.body);
-              console.log(`📬 Parsed notification:`, notification);
-
-              const newNotification: Notification = {
-                id: notification.id || `${Date.now()}_${Math.random()}`,
-                type: notification.type || 'INFO',
-                message: notification.message || 'Thông báo mới',
-                orderId: notification.orderId,
-                read: false,
-                timestamp: notification.timestamp || Date.now(),
-                receivedAt: new Date().toISOString(),
-              };
-
-              console.log(`✅ [${clientId}] Adding new notification:`, newNotification);
-              setNotifications((prev) => [newNotification, ...prev]);
-
-              // Show local notification on device
-              try {
-                await showLocalNotification(
-                  getNotificationTitle(newNotification.type),
-                  newNotification.message,
-                  {
-                    orderId: newNotification.orderId?.toString(),
-                    type: newNotification.type,
-                    notificationId: newNotification.id,
-                  }
-                );
-                console.log('📱 Local notification shown');
-              } catch (err) {
-                console.error('❌ Failed to show local notification:', err);
-              }
-            } catch (error) {
-              console.error('❌ Error parsing notification:', error);
-            }
-          });
-
-          console.log(`📡 [${clientId}] Subscribed to channel: ${channel}`);
-        },
-        onStompError: (frame) => {
-          console.error(`❌ [${role}] [${clientId}] STOMP error:`, frame.headers['message']);
-          setIsConnected(false);
-        },
-        onWebSocketClose: (event) => {
-          console.log(`🔌 [${clientId}] WebSocket closed`);
-          setIsConnected(false);
-        },
-        onWebSocketError: (event) => {
-          console.error(`❌ [${clientId}] WebSocket error:`, event);
-          setIsConnected(false);
-        },
-      });
-
-      stompClientRef.current = client;
-
-      // Activate the client
-      client.activate();
-    } catch (error) {
-      console.error(`❌ [${role}] [${clientId}] Error creating WebSocket:`, error);
-    }
-
-    // Cleanup on unmount
-    return () => {
-      console.log(`🔌 [${clientId}] Cleaning up WebSocket connection`);
-      if (stompClientRef.current) {
-        stompClientRef.current.deactivate();
-      }
-      setIsConnected(false);
-    };
-  }, [userId, role]);
 
   // Helper function to get notification title based on type
   const getNotificationTitle = (type: string): string => {

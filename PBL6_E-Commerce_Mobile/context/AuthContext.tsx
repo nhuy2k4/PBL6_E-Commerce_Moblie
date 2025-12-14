@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login as apiLogin } from '../services/authService';
 import { getCurrentUser } from '../services/userService';
 import { clearCartOnLogout, refreshCartOnLogin } from '@/context/CartContext';
+import { getSavedFCMToken, saveFCMTokenToBackend } from '@/services/fcmService';
+import { registerForPushNotificationsAsync } from '@/services/notificationService';
 import type { User } from '../types';
 
 // Đã migrate User type từ shared/types sang types/index.ts
@@ -109,6 +111,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       await refreshCartOnLogin.refresh();
       console.log('🛒 Cart refreshed');
+      
+      // Get or register FCM token and save to backend after successful login
+      try {
+        console.log('📱 Getting FCM token...');
+        let fcmToken = await getSavedFCMToken();
+        
+        // If no saved token, register for push notifications
+        if (!fcmToken) {
+          console.log('📱 No saved FCM token, registering...');
+          fcmToken = await registerForPushNotificationsAsync();
+        }
+        
+        if (fcmToken && response.user?.id) {
+          console.log('📱 Saving FCM token to backend...');
+          const saved = await saveFCMTokenToBackend(fcmToken, response.user.id);
+          if (saved) {
+            console.log('✅ FCM token saved to backend');
+          } else {
+            console.warn('⚠️ Failed to save FCM token to backend');
+          }
+        } else {
+          console.warn('⚠️ No FCM token or user ID available');
+        }
+      } catch (fcmError) {
+        console.warn('⚠️ Failed to save FCM token after login:', fcmError);
+      }
     } catch (error) {
       console.error('💥 Login error:', error);
       throw error;

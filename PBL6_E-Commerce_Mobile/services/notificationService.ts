@@ -1,8 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert } from 'react-native';
-import Constants from 'expo-constants';
 import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 // Check if running in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -27,12 +27,9 @@ export interface NotificationData {
  * Request notification permissions and get FCM token
  */
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
-  if (isExpoGo) {
-    console.log('⚠️ Running in Expo Go - System notifications not available');
-    return undefined;
-  }
-
   try {
+    console.log('📱 Requesting FCM permission...');
+    
     // Request FCM permission
     const authStatus = await messaging().requestPermission();
     const enabled =
@@ -41,13 +38,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
     if (!enabled) {
       console.warn('⚠️ FCM permission not granted');
-      Alert.alert('Quyền thông báo', 'Vui lòng cấp quyền thông báo trong cài đặt');
       return undefined;
     }
 
     // Get FCM token
     const fcmToken = await messaging().getToken();
-    console.log('✅ FCM Token:', fcmToken);
+    console.log('✅ FCM Token received:', fcmToken.substring(0, 20) + '...');
 
     // Save token to AsyncStorage
     await AsyncStorage.setItem('fcm_token', fcmToken);
@@ -55,10 +51,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     // Setup Android notification channel
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
+        name: 'Thông báo chính',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
+        lightColor: '#FF6347',
+        sound: 'default',
       });
     }
 
@@ -75,7 +72,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       console.warn('⚠️ Local notification permission not granted');
     }
 
-    console.log('✅ Notification permissions granted');
+    console.log('✅ All notification permissions granted');
     return fcmToken;
   } catch (error) {
     console.error('❌ Error registering for push notifications:', error);
@@ -174,16 +171,26 @@ export function addNotificationResponseReceivedListener(
 }
 
 /**
- * Setup FCM background message handler
- * Call this in App.tsx or index.js before rendering app
+ * Setup FCM message handlers
+ * Call this in App.tsx before rendering app
  */
-export function setupFCMBackgroundHandler() {
-  if (isExpoGo) return;
-
-  // Handle background messages
+export function setupFCMHandlers() {
+  // Handle background messages (when app is in background or quit)
   messaging().setBackgroundMessageHandler(async remoteMessage => {
-    console.log('📬 Message handled in the background!', remoteMessage);
+    console.log('📬 Background message received:', remoteMessage);
     
+    // FCM will automatically show notification in background
+    // This handler is for additional processing if needed
+    if (remoteMessage.data) {
+      console.log('📦 Message data:', remoteMessage.data);
+    }
+  });
+
+  // Handle foreground messages (when app is open)
+  const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    console.log('📬 Foreground message received:', remoteMessage);
+    
+    // Show local notification when app is in foreground
     if (remoteMessage.notification) {
       await showLocalNotification(
         remoteMessage.notification.title || 'Thông báo mới',
@@ -193,20 +200,31 @@ export function setupFCMBackgroundHandler() {
     }
   });
 
-  // Handle foreground messages
-  const unsubscribe = messaging().onMessage(async remoteMessage => {
-    console.log('📬 Message received in foreground!', remoteMessage);
-    
-    if (remoteMessage.notification) {
-      await showLocalNotification(
-        remoteMessage.notification.title || 'Thông báo mới',
-        remoteMessage.notification.body || '',
-        remoteMessage.data
-      );
+  // Handle notification opened when app is in background
+  messaging().onNotificationOpenedApp(remoteMessage => {
+    console.log('📱 Notification opened (from background):', remoteMessage);
+    // Handle navigation based on notification data
+    if (remoteMessage.data?.orderId) {
+      console.log('📦 Navigate to order:', remoteMessage.data.orderId);
+      // Add navigation logic here
     }
   });
 
-  return unsubscribe;
+  // Check if app was opened from a notification (when app was quit)
+  messaging()
+    .getInitialNotification()
+    .then(remoteMessage => {
+      if (remoteMessage) {
+        console.log('📱 App opened from notification (quit state):', remoteMessage);
+        // Handle navigation based on notification data
+        if (remoteMessage.data?.orderId) {
+          console.log('📦 Navigate to order:', remoteMessage.data.orderId);
+          // Add navigation logic here
+        }
+      }
+    });
+
+  return unsubscribeForeground;
 }
 
 /**
