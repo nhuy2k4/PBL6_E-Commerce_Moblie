@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "123456789000",
+    "project_id": "pbl6-ecommerce-dummy",
+    "storage_bucket": "pbl6-ecommerce-dummy.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789000:android:abc123def456",
+        "android_client_info": {
+          "package_name": "com.pbl6.ecommercemobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForDevelopmentOnly123456789"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
