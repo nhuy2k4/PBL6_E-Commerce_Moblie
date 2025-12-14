@@ -79,3 +79,131 @@ export async function getProductRatingStats(productId: number): Promise<{
     };
   }
 }
+
+/**
+ * Check if user can review a product
+ */
+export async function checkReviewEligibility(productId: number): Promise<{
+  canReview: boolean;
+  hasReviewed: boolean;
+  hasPurchased: boolean;
+  message?: string;
+}> {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) {
+      return {
+        canReview: false,
+        hasReviewed: false,
+        hasPurchased: false,
+        message: 'Vui lòng đăng nhập',
+      };
+    }
+
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}products/${productId}/review-eligibility`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to check review eligibility');
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error('Error checking review eligibility:', error);
+    return {
+      canReview: false,
+      hasReviewed: false,
+      hasPurchased: false,
+      message: 'Không thể kiểm tra trạng thái đánh giá',
+    };
+  }
+}
+
+/**
+ * Create a review for a product
+ */
+export async function createReview(productId: number, data: {
+  rating: number;
+  comment: string;
+  images?: string[];
+}): Promise<any> {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập để đánh giá');
+    }
+
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}products/${productId}/reviews`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify(data),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Không thể tạo đánh giá');
+    }
+
+    const result = await response.json();
+    console.log('✅ createReview response:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Error creating review:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload review images (before creating review)
+ */
+export async function uploadReviewImages(formData: FormData): Promise<any> {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập để tải ảnh');
+    }
+
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}reviews/images/upload`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true',
+          // Don't set Content-Type for FormData, let browser set it with boundary
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Không thể tải lên hình ảnh');
+    }
+
+    const result = await response.json();
+    console.log('✅ uploadReviewImages response:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Error uploading review images:', error);
+    throw error;
+  }
+}
+
+import AsyncStorage from '@react-native-async-storage/async-storage';

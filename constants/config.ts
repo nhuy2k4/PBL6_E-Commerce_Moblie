@@ -110,6 +110,13 @@ export const API_ENDPOINTS = {
     PRODUCTS: 'seller/products',
     ANALYTICS: 'seller/analytics',
   },
+
+  // Review
+  REVIEW: {
+    CHECK_ELIGIBILITY: (productId: number) => `products/${productId}/review-eligibility`,
+    CREATE: (productId: number) => `products/${productId}/reviews`,
+    GET_PRODUCT_REVIEWS: (productId: number) => `products/${productId}/reviews`,
+  },
 };
 
 export const APP_CONFIG = {

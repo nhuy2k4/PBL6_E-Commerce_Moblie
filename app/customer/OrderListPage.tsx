@@ -76,7 +76,7 @@ const OrderListPage = () => {
             <TouchableOpacity
               style={styles.orderCard}
               activeOpacity={0.85}
-              onPress={() => router.push(`/customer/order-detail/${item.id}`)}
+              onPress={() => router.push(`/customer/order_detail?id=${item.id}`)}
             >
               <Text style={styles.orderCode}>Mã đơn: #{item.id}</Text>
               <Text style={styles.orderStatus}>Trạng thái: {TABS.find(t => t.key === item.status)?.label || item.status}</Text>
