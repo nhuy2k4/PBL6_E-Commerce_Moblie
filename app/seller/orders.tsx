@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView, Alert, RefreshControl, Modal, Image } from 'react-native';
 // import { useRouter } from 'expo-router';
-import { getSellerOrders, updateOrderStatus } from '../../services/sellerOrderService';
+import { getSellerOrders, updateOrderStatus, getSellerOrderDetail } from '../../services/sellerOrderService';
 
 const TABS = [
   { key: 'ALL', label: 'Tất cả', color: '#6c757d' },
@@ -26,6 +26,9 @@ const SellerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -74,10 +77,28 @@ const SellerOrders = () => {
     );
   };
 
+  const loadOrderDetail = async (orderId: number) => {
+    setOrderDetailLoading(true);
+    try {
+      console.log('🔍 Loading order detail for ID:', orderId);
+      const response = await getSellerOrderDetail(orderId);
+      console.log('📦 Order detail response:', response);
+      const orderData = response?.data || response;
+      setSelectedOrder(orderData);
+      setDetailModalVisible(true);
+    } catch (error) {
+      console.error('❌ Load order detail error:', error);
+      Alert.alert('Lỗi', 'Không thể tải chi tiết đơn hàng');
+    } finally {
+      setOrderDetailLoading(false);
+    }
+  };
+
   const updateStatus = async (orderId: number, status: string) => {
     try {
       await updateOrderStatus(orderId, status);
       Alert.alert('Thành công', 'Cập nhật trạng thái đơn hàng thành công');
+      setDetailModalVisible(false);
       loadOrders(); // Reload data
     } catch {
       Alert.alert('Lỗi', 'Không thể cập nhật trạng thái đơn hàng');
@@ -176,7 +197,7 @@ const SellerOrders = () => {
             return (
               <TouchableOpacity 
                 style={styles.orderCard}
-                onPress={() => Alert.alert('Thông báo', 'Tính năng chi tiết đơn hàng đang phát triển')}
+                onPress={() => loadOrderDetail(item.id)}
               >
                 <View style={styles.orderHeader}>
                   <Text style={styles.orderCode}>Mã đơn: #{item.id}</Text>
@@ -207,7 +228,10 @@ const SellerOrders = () => {
                         <Text style={styles.actionButtonText}>{action.label}</Text>
                       </TouchableOpacity>
                     ))}
-                    <TouchableOpacity style={styles.detailButton}>
+                    <TouchableOpacity 
+                      style={styles.detailButton}
+                      onPress={() => loadOrderDetail(item.id)}
+                    >
                       <Text style={styles.detailButtonText}>Xem chi tiết</Text>
                     </TouchableOpacity>
                   </View>
@@ -224,6 +248,147 @@ const SellerOrders = () => {
           <Text style={styles.emptyText}>Không có đơn hàng nào</Text>
         </View>
       )}
+
+      {/* Order Detail Modal */}
+      <Modal
+        visible={detailModalVisible}
+        animationType="slide"
+        onRequestClose={() => setDetailModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Chi tiết đơn hàng</Text>
+            <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {orderDetailLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color="#007bff" />
+            </View>
+          ) : selectedOrder ? (
+            <ScrollView style={styles.modalContent}>
+              {/* Order Info */}
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Thông tin đơn hàng</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Mã đơn:</Text>
+                  <Text style={styles.infoValue}>#{selectedOrder.id}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Trạng thái:</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedOrder.status) }]}>
+                    <Text style={styles.statusText}>
+                      {TABS.find(t => t.key === selectedOrder.status)?.label || selectedOrder.status}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Thanh toán:</Text>
+                  <Text style={styles.infoValue}>{selectedOrder.method || 'COD'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Ngày đặt:</Text>
+                  <Text style={styles.infoValue}>
+                    {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Receiver Info */}
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Thông tin người nhận</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Họ tên:</Text>
+                  <Text style={styles.infoValue}>{selectedOrder.receiverName || 'N/A'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Số điện thoại:</Text>
+                  <Text style={styles.infoValue}>{selectedOrder.receiverPhone || 'N/A'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Địa chỉ:</Text>
+                  <Text style={[styles.infoValue, { flex: 1 }]}>
+                    {selectedOrder.receiverAddress || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Products */}
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Sản phẩm ({selectedOrder.items?.length || 0})</Text>
+                {(selectedOrder.items || []).map((item: any, index: number) => (
+                  <View key={index} style={styles.productItem}>
+                    {item.productImage && (
+                      <Image 
+                        source={{ uri: item.productImage }} 
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName}>{item.productName}</Text>
+                      {item.variantName && (
+                        <Text style={styles.variantName}>Phân loại: {item.variantName}</Text>
+                      )}
+                      <View style={styles.productPriceRow}>
+                        <Text style={styles.productPrice}>
+                          {(item.price || 0).toLocaleString('vi-VN')} đ
+                        </Text>
+                        <Text style={styles.productQuantity}>x{item.quantity}</Text>
+                      </View>
+                      <Text style={styles.productSubtotal}>
+                        Tổng: {(item.subtotal || 0).toLocaleString('vi-VN')} đ
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Total */}
+              <View style={styles.totalSection}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Tổng cộng:</Text>
+                  <Text style={styles.totalValue}>
+                    {(selectedOrder.totalAmount || 0).toLocaleString('vi-VN')} đ
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              {getOrderActions({ status: selectedOrder.status } as Order).length > 0 && (
+                <View style={styles.modalActions}>
+                  {getOrderActions({ status: selectedOrder.status } as Order).map((action, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.modalActionButton, { backgroundColor: action.color }]}
+                      onPress={() => {
+                        Alert.alert(
+                          'Xác nhận',
+                          `Bạn có chắc muốn ${action.label.toLowerCase()}?`,
+                          [
+                            { text: 'Hủy', style: 'cancel' },
+                            { 
+                              text: 'Xác nhận', 
+                              onPress: () => updateStatus(selectedOrder.id, action.action) 
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={styles.modalActionText}>{action.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -370,24 +535,143 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     textAlign: 'center',
   },
-  itemCard: {
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    backgroundColor: '#fff',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#212529',
+  },
+  closeButton: {
+    fontSize: 28,
+    color: '#6c757d',
+    fontWeight: '300',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  infoSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#212529',
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    width: 120,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#212529',
+    fontWeight: '500',
+  },
+  productItem: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#e9ecef',
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  variantName: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginBottom: 4,
+  },
+  productPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    marginBottom: 4,
   },
-  actionBtn: {
-    backgroundColor: '#007bff',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 8,
+  productPrice: {
+    fontSize: 14,
+    color: '#dc3545',
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  productQuantity: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  productSubtotal: {
+    fontSize: 14,
+    color: '#28a745',
+    fontWeight: '600',
+  },
+  totalSection: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    marginTop: 8,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#212529',
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#dc3545',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  modalActionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalActionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

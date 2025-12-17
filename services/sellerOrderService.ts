@@ -46,7 +46,7 @@ export async function getSellerOrders(): Promise<any> {
 export async function updateOrderStatus(orderId: number, status: string): Promise<any> {
   try {
     const response = await fetchApi(buildUrl(API_ENDPOINTS.SELLER.UPDATE_ORDER_STATUS(orderId)), {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify({ status }),
     });
     console.log('✅ updateOrderStatus response:', response);
