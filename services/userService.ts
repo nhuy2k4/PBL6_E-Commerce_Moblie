@@ -1,6 +1,6 @@
 // Shared user service
 import { fetchWithAuth } from './api';
-import type { User, Order } from '../types';
+import type { User, Order, UserProfile, UpdateProfileDTO, ChangePasswordDTO } from '../types';
 
 /**
  * Get current user profile
@@ -12,15 +12,45 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 /**
- * Update user profile
+ * Get full user profile with timestamps
+ * GET /api/profile
  */
-export async function updateUserProfile(data: Partial<User>): Promise<User> {
-  // Backend chưa có endpoint update profile, nếu cần hãy tạo ở backend
-  // return fetchWithAuth<User>('/user/profile', {
-  //   method: 'PUT',
-  //   body: JSON.stringify(data),
-  // });
-  throw new Error('Update profile endpoint not implemented on backend');
+export async function getUserProfile(): Promise<UserProfile> {
+  return fetchWithAuth<UserProfile>('user/profile', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Update user profile
+ * PUT /api/profile
+ */
+export async function updateUserProfile(data: UpdateProfileDTO): Promise<UserProfile> {
+  return fetchWithAuth<UserProfile>('user/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Change password
+ * PUT /api/user/change-password
+ */
+export async function changePassword(data: ChangePasswordDTO): Promise<void> {
+  await fetchWithAuth<{ message: string }>('user/change-password', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update avatar URL
+ * PUT /api/user/avatar
+ */
+export async function updateAvatar(avatarUrl: string): Promise<UserProfile> {
+  return fetchWithAuth<UserProfile>(`/user/avatar?avatarUrl=${encodeURIComponent(avatarUrl)}`, {
+    method: 'PUT',
+  });
 }
 
 /**

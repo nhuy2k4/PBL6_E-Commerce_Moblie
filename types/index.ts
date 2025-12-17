@@ -10,6 +10,43 @@ export interface User {
 	fullName?: string | null;
 }
 
+export interface UserProfile {
+	id: number;
+	username: string;
+	email: string;
+	fullName: string | null;
+	phoneNumber: string | null;
+	avatarUrl: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface UpdateProfileDTO {
+	fullName: string;
+	phoneNumber: string;
+}
+
+export interface ChangePasswordDTO {
+	currentPassword: string;
+	newPassword: string;
+	confirmPassword: string;
+}
+
+export interface Address {
+	id?: number;
+	fullAddress: string;
+	provinceId: number;
+	districtId: number;
+	wardCode: string;
+	provinceName: string;
+	districtName: string;
+	wardName: string;
+	contactName: string;
+	contactPhone: string;
+	primaryAddress: boolean;
+	createdAt?: string;
+}
+
 export interface Product {
 	id: number;
 	name: string;
