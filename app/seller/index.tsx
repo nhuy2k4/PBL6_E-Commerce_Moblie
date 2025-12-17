@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'rea
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import SellerNavigator from '../../navigation/SellerNavigator';
-import { canSubmitRegistration } from '@/services/sellerRegistrationService';
+import { getRegistrationStatus } from '@/services/sellerRegistrationService';
 
 const BuyerRegisterView = () => {
   const router = useRouter();
@@ -16,11 +16,35 @@ const BuyerRegisterView = () => {
 
   const checkRegistrationStatus = async () => {
     try {
-      const result = await canSubmitRegistration();
-      setHasRegistration(!result.canSubmit);
-    } catch (error) {
-      console.error('Error checking registration status:', error);
-      setHasRegistration(false);
+      console.log('🔍 Checking registration status...');
+      const response = await getRegistrationStatus();
+      const status = response?.data?.status;
+      
+      console.log('✅ Registration status:', status);
+      
+      // If has registration status, redirect to status page
+      if (status) {
+        setHasRegistration(true);
+        console.log('📋 Has registration, redirecting to status page...');
+        // Auto redirect to status page after component mounts
+        setTimeout(() => {
+          router.replace('/seller/registration-status');
+        }, 100);
+      } else {
+        // No status means no registration
+        setHasRegistration(false);
+        console.log('📦 No registration found, showing register button');
+      }
+    } catch (error: any) {
+      // 404 means no registration exists -> show register button
+      if (error?.response?.status === 404) {
+        console.log('📦 No registration (404), showing register button');
+        setHasRegistration(false);
+      } else {
+        console.error('❌ Error checking registration:', error);
+        // On other errors, assume no registration to allow user to try
+        setHasRegistration(false);
+      }
     } finally {
       setChecking(false);
     }
@@ -53,21 +77,12 @@ const BuyerRegisterView = () => {
             <Text style={styles.primaryButtonText}>Xem trạng thái đăng ký</Text>
           </TouchableOpacity>
         ) : (
-          <>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => router.push('/customer/register-seller')}
-            >
-              <Text style={styles.primaryButtonText}>Đăng ký bán hàng</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/seller/registration-status')}
-            >
-              <Text style={styles.secondaryButtonText}>Xem trạng thái đăng ký</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/customer/register-seller')}
+          >
+            <Text style={styles.primaryButtonText}>Đăng ký bán hàng</Text>
+          </TouchableOpacity>
         )}
 
         <View style={styles.benefits}>

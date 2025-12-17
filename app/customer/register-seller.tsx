@@ -12,15 +12,23 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { submitSellerRegistration, canSubmitRegistration } from '@/services/sellerRegistrationService';
+import { 
+  submitSellerRegistration, 
+  canSubmitRegistration, 
+  getRegistrationStatus,
+  updateRejectedApplication,
+  cancelRejectedApplication
+} from '@/services/sellerRegistrationService';
 import { getProvinces, getDistricts, getWards } from '@/services/addressService';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
 
 type Step = 1 | 2 | 3;
 
 const SellerRegister = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   
@@ -63,41 +71,140 @@ const SellerRegister = () => {
   const [showWardModal, setShowWardModal] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
 
-  // Check registration status and load provinces on mount
+  // Check registration status, load provinces, and pre-fill data if editing
   useEffect(() => {
     checkRegistrationStatus();
     loadProvinces();
+    
+    // Pre-fill form if editing rejected registration
+    if (params.editData) {
+      try {
+        const editData = JSON.parse(params.editData as string);
+        console.log('📝 Pre-filling form with existing data:', editData);
+        
+        // Pre-fill form data
+        setFormData({
+          shopName: editData.shopName || '',
+          description: editData.description || '',
+          shopPhone: editData.shopPhone || '',
+          shopEmail: editData.shopEmail || '',
+          logoUrl: editData.logoUrl || '',
+          bannerUrl: editData.bannerUrl || '',
+          fullAddress: editData.fullAddress || '',
+          provinceName: editData.provinceName || '',
+          provinceId: editData.provinceId || 0,
+          districtName: editData.districtName || '',
+          districtId: editData.districtId || 0,
+          wardName: editData.wardName || '',
+          wardId: editData.wardId || 0,
+          contactName: editData.contactName || '',
+          contactPhone: editData.contactPhone || '',
+          idCardNumber: editData.idCardNumber || '',
+          idCardName: editData.idCardName || '',
+          idCardFrontUrl: editData.idCardFrontUrl || '',
+          idCardBackUrl: editData.idCardBackUrl || '',
+          selfieWithIdUrl: editData.selfieWithIdUrl || '',
+        });
+        
+        // Load districts and wards if province/district are selected
+        if (editData.provinceId) {
+          loadDistricts(editData.provinceId);
+        }
+        if (editData.districtId) {
+          loadWards(editData.districtId);
+        }
+      } catch (error) {
+        console.error('Error parsing editData:', error);
+      }
+    }
   }, []);
 
   const checkRegistrationStatus = async () => {
     try {
+      // Check if can submit
       const result = await canSubmitRegistration();
-      if (!result.canSubmit) {
-        // User already has a pending or approved registration
-        Alert.alert(
-          'Thông báo',
-          'Bạn đã có đơn đăng ký. Chuyển đến trang trạng thái đăng ký.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/seller/registration-status'),
-            },
-          ]
-        );
+      const canSubmit = result?.data?.canSubmit ?? result?.canSubmit ?? true;
+      
+      if (!canSubmit) {
+        // User has existing registration, check its status
+        try {
+          const statusData = await getRegistrationStatus();
+          const status = statusData?.data?.status || statusData?.status;
+          
+          if (status === 'PENDING') {
+            // Pending registration - redirect to status page
+            Alert.alert(
+              '⏳ Đơn đăng ký đang chờ duyệt',
+              'Đơn đăng ký của bạn đang được xem xét. Vui lòng kiểm tra trạng thái.',
+              [
+                {
+                  text: 'Xem trạng thái',
+                  onPress: () => router.replace('/seller/registration-status'),
+                },
+              ]
+            );
+          } else if (status === 'APPROVED') {
+            // Approved - user is now a seller, redirect to seller page
+            Alert.alert(
+              '✅ Đăng ký thành công!',
+              'Tài khoản của bạn đã được kích hoạt quyền bán hàng.',
+              [
+                {
+                  text: 'Vào trang Seller',
+                  onPress: () => router.replace('/seller'),
+                },
+              ]
+            );
+          } else if (status === 'REJECTED') {
+            // Rejected - allow edit and resubmit (don't block, continue to form)
+            console.log('📝 Registration was rejected, user can edit and resubmit');
+            // Form will be pre-filled via params.editData
+          }
+        } catch (statusError) {
+          console.error('❌ Error getting status:', statusError);
+          // If can't get status, redirect to status page anyway
+          router.replace('/seller/registration-status');
+        }
       }
-    } catch (error) {
-      console.error('Error checking registration status:', error);
-      // Continue to show registration form on error
+      // If canSubmit = true -> allow registration form
+    } catch (error: any) {
+      // 404 means no registration exists -> allow registration
+      if (error?.response?.status === 404) {
+        console.log('📦 No registration found, user can register');
+        return;
+      }
+      console.error('❌ Error checking registration status:', error);
+      // Continue to show registration form on other errors
     }
   };
 
   const loadProvinces = async () => {
     try {
       setLoadingAddress(true);
-      const data = await getProvinces();
-      setProvinces(data.data || []);
+      console.log('🔍 Loading provinces...');
+      const response = await getProvinces();
+      console.log('📦 Full response:', JSON.stringify(response).substring(0, 200));
+      
+      // Handle different response formats
+      let provincesList = [];
+      if (Array.isArray(response)) {
+        provincesList = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          provincesList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          provincesList = response.data.data;
+        }
+      }
+      
+      console.log('📦 Provinces count:', provincesList.length);
+      setProvinces(provincesList);
+      
+      if (provincesList.length === 0) {
+        Alert.alert('Cảnh báo', 'Không có dữ liệu tỉnh/thành phố. Vui lòng kiểm tra kết nối API.');
+      }
     } catch (error) {
-      console.error('Error loading provinces:', error);
+      console.error('❌ Error loading provinces:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách tỉnh/thành phố');
     } finally {
       setLoadingAddress(false);
@@ -107,8 +214,22 @@ const SellerRegister = () => {
   const loadDistricts = async (provinceId: number) => {
     try {
       setLoadingAddress(true);
-      const data = await getDistricts(provinceId);
-      setDistricts(data.data || []);
+      const response = await getDistricts(provinceId);
+      
+      // Handle different response formats
+      let districtsList = [];
+      if (Array.isArray(response)) {
+        districtsList = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          districtsList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          districtsList = response.data.data;
+        }
+      }
+      
+      console.log('📦 Districts count:', districtsList.length);
+      setDistricts(districtsList);
       setWards([]);
     } catch (error) {
       console.error('Error loading districts:', error);
@@ -121,8 +242,22 @@ const SellerRegister = () => {
   const loadWards = async (districtId: number) => {
     try {
       setLoadingAddress(true);
-      const data = await getWards(districtId);
-      setWards(data.data || []);
+      const response = await getWards(districtId);
+      
+      // Handle different response formats
+      let wardsList = [];
+      if (Array.isArray(response)) {
+        wardsList = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          wardsList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          wardsList = response.data.data;
+        }
+      }
+      
+      console.log('📦 Wards count:', wardsList.length);
+      setWards(wardsList);
     } catch (error) {
       console.error('Error loading wards:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách phường/xã');
@@ -130,14 +265,6 @@ const SellerRegister = () => {
       setLoadingAddress(false);
     }
   };
-
-  const [uploading, setUploading] = useState({
-    logo: false,
-    banner: false,
-    idCardFront: false,
-    idCardBack: false,
-    selfie: false,
-  });
 
   const handleChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -153,11 +280,24 @@ const SellerRegister = () => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        // In a real app, you would upload to Cloudinary here
-        // For now, just store the local URI
         const uri = result.assets[0].uri;
-        setFormData({ ...formData, [field]: uri });
-        Alert.alert('Thành công', 'Đã chọn ảnh. Lưu ý: Cần upload lên server thật.');
+        console.log(`📷 Selected ${field}:`, uri);
+        
+        try {
+          // Upload to Cloudinary via backend immediately
+          console.log('⏳ Uploading to backend...');
+          const uploadResult = await uploadToCloudinary(uri, 'seller-registration');
+          
+          // Store Cloudinary URL
+          setFormData({ ...formData, [field]: uploadResult.secure_url });
+          console.log(`✅ Uploaded ${field}:`, uploadResult.secure_url);
+          Alert.alert('✅ Thành công', 'Đã tải ảnh lên thành công');
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('❌ Lỗi tải ảnh', 'Không thể tải ảnh lên. Vui lòng thử lại.\n' + (uploadError as Error).message);
+          // Store local URI as fallback
+          setFormData({ ...formData, [field]: uri });
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -230,9 +370,15 @@ const SellerRegister = () => {
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
 
+    // Check if editing existing registration
+    const isEditing = !!params.editData;
+    const confirmMessage = isEditing
+      ? 'Bạn có chắc muốn cập nhật và gửi lại đơn đăng ký?'
+      : 'Bạn có chắc muốn gửi đơn đăng ký làm người bán?';
+
     Alert.alert(
       'Xác nhận',
-      'Bạn có chắc muốn gửi đơn đăng ký làm người bán?',
+      confirmMessage,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -240,16 +386,52 @@ const SellerRegister = () => {
           onPress: async () => {
             setSubmitting(true);
             try {
-              // Note: In real app, images should be uploaded to Cloudinary first
-              await submitSellerRegistration(formData);
-              Alert.alert(
-                'Thành công',
-                'Đơn đăng ký của bạn đã được gửi. Vui lòng chờ xét duyệt.',
-                [{ text: 'OK', onPress: () => router.push('/seller/registration-status') }]
-              );
+              console.log('📋 Form data before submit:', formData);
+              
+              // Clean data: Remove local file URIs, set default IDs for manual address input
+              const cleanedData = {
+                ...formData,
+                // Remove local file URIs
+                logoUrl: formData.logoUrl?.startsWith('file://') ? '' : formData.logoUrl || '',
+                bannerUrl: formData.bannerUrl?.startsWith('file://') ? '' : formData.bannerUrl || '',
+                idCardFrontUrl: formData.idCardFrontUrl?.startsWith('file://') ? '' : formData.idCardFrontUrl || '',
+                idCardBackUrl: formData.idCardBackUrl?.startsWith('file://') ? '' : formData.idCardBackUrl || '',
+                selfieWithIdUrl: formData.selfieWithIdUrl?.startsWith('file://') ? '' : formData.selfieWithIdUrl || '',
+                // If manual input (no IDs from API), use default values
+                provinceId: formData.provinceId || 0,
+                districtId: formData.districtId || 0,
+                wardCode: formData.wardCode || '',
+              };
+              
+              console.log('📦 Cleaned data:', cleanedData);
+              
+              // Call appropriate API based on mode
+              let result;
+              if (isEditing) {
+                console.log('📝 Updating rejected registration...');
+                result = await updateRejectedApplication(cleanedData);
+                console.log('✅ Update result:', result);
+                
+                Alert.alert(
+                  'Thành công',
+                  'Đơn đăng ký đã được cập nhật và gửi lại. Vui lòng chờ xét duyệt.',
+                  [{ text: 'OK', onPress: () => router.replace('/seller/registration-status') }]
+                );
+              } else {
+                console.log('📝 Submitting new registration...');
+                result = await submitSellerRegistration(cleanedData);
+                console.log('✅ Submit result:', result);
+                
+                Alert.alert(
+                  'Thành công',
+                  'Đơn đăng ký của bạn đã được gửi. Vui lòng chờ xét duyệt.',
+                  [{ text: 'OK', onPress: () => router.replace('/seller/registration-status') }]
+                );
+              }
             } catch (error: any) {
               console.error('Submit error:', error);
-              Alert.alert('Lỗi', error?.response?.data?.message || 'Không thể gửi đơn đăng ký');
+              const errorMsg = error.message || error?.response?.data?.message || 'Không thể gửi đơn đăng ký';
+              Alert.alert('Lỗi', errorMsg);
             } finally {
               setSubmitting(false);
             }
@@ -290,6 +472,26 @@ const SellerRegister = () => {
 
   const renderStep1 = () => (
     <View>
+      {/* Rejection Alert - Show when editing */}
+      {params.editData && params.rejectionReason && (
+        <View style={styles.rejectionAlert}>
+          <View style={styles.rejectionHeader}>
+            <Text style={styles.rejectionIcon}>⚠️</Text>
+            <Text style={styles.rejectionTitle}>Đơn đăng ký bị từ chối</Text>
+          </View>
+          <View style={styles.rejectionReasonBox}>
+            <Text style={styles.rejectionReasonLabel}>Lý do từ Admin:</Text>
+            <Text style={styles.rejectionReasonText}>{params.rejectionReason}</Text>
+          </View>
+          <View style={styles.rejectionGuide}>
+            <Text style={styles.rejectionGuideIcon}>📝</Text>
+            <Text style={styles.rejectionGuideText}>
+              Vui lòng chỉnh sửa thông tin theo yêu cầu trên và gửi lại đơn đăng ký.
+            </Text>
+          </View>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>Thông tin Shop</Text>
 
       <Text style={styles.label}>Tên Shop *</Text>
@@ -367,40 +569,67 @@ const SellerRegister = () => {
       <Text style={styles.sectionTitle}>Địa chỉ lấy hàng</Text>
 
       <Text style={styles.label}>Tỉnh/Thành phố *</Text>
-      <TouchableOpacity
-        style={styles.pickerButton}
-        onPress={() => setShowProvinceModal(true)}
-        disabled={loadingAddress}
-      >
-        <Text style={[styles.pickerButtonText, !formData.provinceName && styles.placeholderText]}>
-          {formData.provinceName || 'Chọn Tỉnh/TP'}
-        </Text>
-        <Text style={styles.pickerArrow}>▼</Text>
-      </TouchableOpacity>
+      {provinces.length > 0 ? (
+        <TouchableOpacity
+          style={styles.pickerButton}
+          onPress={() => setShowProvinceModal(true)}
+          disabled={loadingAddress}
+        >
+          <Text style={[styles.pickerButtonText, !formData.provinceName && styles.placeholderText]}>
+            {formData.provinceName || 'Chọn Tỉnh/TP'}
+          </Text>
+          <Text style={styles.pickerArrow}>▼</Text>
+        </TouchableOpacity>
+      ) : (
+        <TextInput
+          style={styles.input}
+          placeholder="Nhập Tỉnh/Thành phố"
+          value={formData.provinceName}
+          onChangeText={(text) => handleChange('provinceName', text)}
+        />
+      )}
 
-      <Text style={styles.label}>Quận/Huyện</Text>
-      <TouchableOpacity
-        style={[styles.pickerButton, !formData.provinceId && styles.pickerDisabled]}
-        onPress={() => setShowDistrictModal(true)}
-        disabled={!formData.provinceId || loadingAddress}
-      >
-        <Text style={[styles.pickerButtonText, !formData.districtName && styles.placeholderText]}>
-          {formData.districtName || 'Chọn Quận/Huyện'}
-        </Text>
-        <Text style={styles.pickerArrow}>▼</Text>
-      </TouchableOpacity>
+      <Text style={styles.label}>Quận/Huyện *</Text>
+      {districts.length > 0 ? (
+        <TouchableOpacity
+          style={[styles.pickerButton, !formData.provinceId && styles.pickerDisabled]}
+          onPress={() => setShowDistrictModal(true)}
+          disabled={!formData.provinceId || loadingAddress}
+        >
+          <Text style={[styles.pickerButtonText, !formData.districtName && styles.placeholderText]}>
+            {formData.districtName || 'Chọn Quận/Huyện'}
+          </Text>
+          <Text style={styles.pickerArrow}>▼</Text>
+        </TouchableOpacity>
+      ) : (
+        <TextInput
+          style={styles.input}
+          placeholder="Nhập Quận/Huyện"
+          value={formData.districtName}
+          onChangeText={(text) => handleChange('districtName', text)}
+        />
+      )}
 
-      <Text style={styles.label}>Phường/Xã</Text>
-      <TouchableOpacity
-        style={[styles.pickerButton, !formData.districtId && styles.pickerDisabled]}
-        onPress={() => setShowWardModal(true)}
-        disabled={!formData.districtId || loadingAddress}
-      >
-        <Text style={[styles.pickerButtonText, !formData.wardName && styles.placeholderText]}>
-          {formData.wardName || 'Chọn Phường/Xã'}
-        </Text>
-        <Text style={styles.pickerArrow}>▼</Text>
-      </TouchableOpacity>
+      <Text style={styles.label}>Phường/Xã *</Text>
+      {wards.length > 0 ? (
+        <TouchableOpacity
+          style={[styles.pickerButton, !formData.districtId && styles.pickerDisabled]}
+          onPress={() => setShowWardModal(true)}
+          disabled={!formData.districtId || loadingAddress}
+        >
+          <Text style={[styles.pickerButtonText, !formData.wardName && styles.placeholderText]}>
+            {formData.wardName || 'Chọn Phường/Xã'}
+          </Text>
+          <Text style={styles.pickerArrow}>▼</Text>
+        </TouchableOpacity>
+      ) : (
+        <TextInput
+          style={styles.input}
+          placeholder="Nhập Phường/Xã"
+          value={formData.wardName}
+          onChangeText={(text) => handleChange('wardName', text)}
+        />
+      )}
 
       <Text style={styles.label}>Địa chỉ chi tiết *</Text>
       <TextInput
@@ -569,13 +798,23 @@ const SellerRegister = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn Tỉnh/Thành phố</Text>
+              <Text style={styles.modalTitle}>Chọn Tỉnh/Thành phố ({provinces.length})</Text>
               <TouchableOpacity onPress={() => setShowProvinceModal(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
             {loadingAddress ? (
               <ActivityIndicator size="large" color="#007AFF" style={{ marginVertical: 20 }} />
+            ) : provinces.length === 0 ? (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#999' }}>Không có dữ liệu tỉnh/thành phố</Text>
+                <TouchableOpacity 
+                  onPress={loadProvinces}
+                  style={{ marginTop: 10, padding: 10, backgroundColor: '#007AFF', borderRadius: 8 }}
+                >
+                  <Text style={{ color: '#fff' }}>Tải lại</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <FlatList
                 data={provinces}
@@ -905,8 +1144,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#333',
   },
-  pickerPlaceholder: {
+  placeholderText: {
     fontSize: 15,
+    color: '#999',
+  },
+  pickerArrow: {
+    fontSize: 12,
     color: '#999',
   },
   modalOverlay: {
@@ -932,6 +1175,66 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color: '#333',
+  },
+  // Rejection Alert Styles
+  rejectionAlert: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F44336',
+  },
+  rejectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rejectionIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  rejectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#D32F2F',
+  },
+  rejectionReasonBox: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  rejectionReasonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#C62828',
+    marginBottom: 4,
+  },
+  rejectionReasonText: {
+    fontSize: 15,
+    color: '#D32F2F',
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  rejectionGuide: {
+    flexDirection: 'row',
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2196F3',
+  },
+  rejectionGuideIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  rejectionGuideText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1565C0',
+    lineHeight: 20,
     color: '#333',
   },
   modalClose: {
