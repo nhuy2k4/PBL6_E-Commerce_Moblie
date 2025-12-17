@@ -63,7 +63,6 @@ export default function ProductExplorer() {
     </View>
   );
 
-  console.log('ProductExplorer products:', products);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with See All */}

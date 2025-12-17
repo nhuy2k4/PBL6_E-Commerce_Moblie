@@ -38,7 +38,6 @@ export async function getProducts(page: number = 0, size: number = 12): Promise<
     url.searchParams.append('size', size.toString());
     
     const response = await fetchApi(url.toString());
-    console.log('🔍 getProducts response:', response);
     return response;
   } catch (error) {
     console.error('Error fetching products:', error);

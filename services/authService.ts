@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_ENDPOINTS } from '../constants/config';
 import { buildUrl } from '../utils/api';
 import type { AuthResponse, LoginCredentials, RegisterData, User } from '../types';
+import { refreshFCMToken, unregisterFCMToken } from './fcmService';
 
 // ==================== HELPERS ====================
 
@@ -66,6 +67,11 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     if (response.data) {
       const { token, refreshToken, user } = response.data;
       await saveAuthData({ token, refreshToken, user });
+      
+      // Register FCM token after successful login
+      await refreshFCMToken().catch(err => {
+        console.warn('⚠️ Failed to register FCM token:', err);
+      });
       
       return {
         accessToken: token,
@@ -136,6 +142,11 @@ export async function loginWithFacebook(accessToken: string): Promise<AuthRespon
 
 export async function logout(): Promise<void> {
   try {
+    // Unregister FCM token before logout
+    await unregisterFCMToken().catch(err => {
+      console.warn('⚠️ Failed to unregister FCM token:', err);
+    });
+    
     await fetchApi(buildUrl(API_ENDPOINTS.AUTH.LOGOUT), { method: 'POST' });
   } catch (error) {
     console.error('Logout error:', error);

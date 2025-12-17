@@ -9,6 +9,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
 import { configureGoogleSignIn } from '@/services/nativeGoogleAuth';
+import { initializeFCM, setupBackgroundHandler } from '@/services/fcmService';
+
+// Setup FCM background handler
+setupBackgroundHandler();
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -22,6 +26,13 @@ export default function RootLayout() {
   useEffect(() => {
     configureGoogleSignIn();
   }, []);
+
+  // Initialize FCM for push notifications
+  useEffect(() => {
+    initializeFCM(router).catch((err) => {
+      console.error('❌ FCM initialization failed:', err);
+    });
+  }, [router]);
 
   // Handle deep links for payment results
   useEffect(() => {
