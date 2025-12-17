@@ -8,6 +8,13 @@ import { buildUrl } from '../utils/api';
 import type { AuthResponse, LoginCredentials, RegisterData, User } from '../types';
 import { refreshFCMToken, unregisterFCMToken } from './fcmService';
 
+// Get API URL from environment
+const getApiUrl = () => {
+  const url = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8081';
+  // Remove trailing slash and /api/ if present
+  return url.replace(/\/api\/?$/, '').replace(/\/$/, '');
+};
+
 // ==================== HELPERS ====================
 
 const fetchApi = async (url: string, options: RequestInit = {}) => {
@@ -68,9 +75,9 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
       const { token, refreshToken, user } = response.data;
       await saveAuthData({ token, refreshToken, user });
       
-      // Register FCM token after successful login
-      await refreshFCMToken().catch(err => {
-        console.warn('⚠️ Failed to register FCM token:', err);
+      // Register FCM token after successful login (safe - won't crash)
+      await refreshFCMToken(getApiUrl()).catch(err => {
+        console.warn('⚠️ FCM token registration failed (login still succeeded):', err);
       });
       
       return {
@@ -142,9 +149,9 @@ export async function loginWithFacebook(accessToken: string): Promise<AuthRespon
 
 export async function logout(): Promise<void> {
   try {
-    // Unregister FCM token before logout
-    await unregisterFCMToken().catch(err => {
-      console.warn('⚠️ Failed to unregister FCM token:', err);
+    // Unregister FCM token before logout (safe - won't crash)
+    await unregisterFCMToken(getApiUrl()).catch(err => {
+      console.warn('⚠️ FCM token unregistration failed (logout continues):', err);
     });
     
     await fetchApi(buildUrl(API_ENDPOINTS.AUTH.LOGOUT), { method: 'POST' });
