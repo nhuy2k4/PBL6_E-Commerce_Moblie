@@ -1,6 +1,6 @@
 // Shared configuration constants
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/api/',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL,
   TIMEOUT: 30000,
 };
 

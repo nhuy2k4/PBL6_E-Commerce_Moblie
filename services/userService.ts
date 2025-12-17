@@ -70,3 +70,62 @@ export async function getOrderById(orderId: number): Promise<Order> {
     method: 'GET',
   });
 }
+
+/**
+ * GHN Master Data APIs
+ * Get list of provinces from GHN
+ */
+export async function getProvinces(): Promise<any[]> {
+  try {
+    const data = await fetchWithAuth<any>('ghn/master/provinces', {
+      method: 'GET',
+    });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('❌ Error loading provinces:', error);
+    return [];
+  }
+}
+
+/**
+ * Get list of districts for a province from GHN
+ * @param provinceId - Province ID from GHN
+ */
+export async function getDistricts(provinceId: number): Promise<any[]> {
+  try {
+    const data = await fetchWithAuth<any>(`ghn/master/districts?province_id=${provinceId}`, {
+      method: 'GET',
+    });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('❌ Error loading districts:', error);
+    return [];
+  }
+}
+
+/**
+ * Get list of wards for a district from GHN
+ * @param districtId - District ID from GHN
+ */
+export async function getWards(districtId: number): Promise<any[]> {
+  try {
+    const data = await fetchWithAuth<any>(`ghn/master/wards?district_id=${districtId}`, {
+      method: 'GET',
+    });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('❌ Error loading wards:', error);
+    return [];
+  }
+}
+
+/**
+ * Resolve province/district/ward names to IDs
+ * @param addressData - { province, district, ward }
+ */
+export async function resolveAddress(addressData: { province: string; district: string; ward: string }): Promise<any> {
+  return fetchWithAuth<any>('ghn/master/resolve', {
+    method: 'POST',
+    body: JSON.stringify(addressData),
+  });
+}
