@@ -21,17 +21,17 @@ interface BannerItem {
 const banners: BannerItem[] = [
   {
     id: '1',
-    imageUrl: 'https://via.placeholder.com/800x400/FF6B6B/FFFFFF?text=Flash+Sale+50%25',
+    imageUrl: 'https://img.pikbest.com/origin/06/02/07/5pIkbEsTIpIkbEsTgWk.jpg!w700wp',
     title: 'Flash Sale',
   },
   {
     id: '2',
-    imageUrl: 'https://via.placeholder.com/800x400/4ECDC4/FFFFFF?text=New+Arrival',
+    imageUrl: 'https://img.pikbest.com/origin/06/02/07/5pIkbEsTIpIkbEsTgWk.jpg!w700wp',
     title: 'New Arrival',
   },
   {
     id: '3',
-    imageUrl: 'https://via.placeholder.com/800x400/45B7D1/FFFFFF?text=Best+Seller',
+    imageUrl: 'https://img.pikbest.com/origin/06/02/07/5pIkbEsTIpIkbEsTgWk.jpg!w700wp',
     title: 'Best Seller',
   },
 ];
