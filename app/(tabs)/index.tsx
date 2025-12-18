@@ -11,16 +11,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/styles/theme';
 import HomeHeader from '@/components/home/HomeHeader';
+import CategoryList from '@/components/home/CategoryList';
 import PromoBanner from '@/components/home/PromoBanner';
-// import BannerCarousel from '@/components/home/BannerCarousel';
-import QuickActions from '@/components/home/QuickActions';
-
 import FlashSaleSection from '@/components/home/FlashSaleSection';
 import BestSellerSection from '@/components/home/BestSellerSection';
 import NewArrivalSection from '@/components/home/NewArrivalSection';
 import ProductExplorer from '@/components/home/ProductExplorer';
 import ServiceFeatures from '@/components/home/ServiceFeatures';
-import CategoryList from '@/components/home/CategoryList';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 
 export default function HomeScreen() {
@@ -61,16 +58,12 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Category List */}
-
-        {/* Banner Carousel */}
-        {/* <View style={styles.section}>
+        <View style={styles.section}>
           <CategoryList />
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <QuickActions />
+        <View style={styles.bannerSection}>
+          <PromoBanner />
         </View>
 
         {/* Flash Sale Section */}
@@ -84,10 +77,6 @@ export default function HomeScreen() {
 
         {/* New Arrival Section */}
         <NewArrivalSection />
-
-
-        {/* Product Explorer */}
-        <ProductExplorer />
 
         {/* Service Features */}
         <ServiceFeatures />
@@ -105,6 +94,10 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingHorizontal: 16,
+  },
+  bannerSection: {
+    paddingHorizontal: 16,
+    marginTop: 8,
   },
   bottomSpacing: {
     height: 32,
