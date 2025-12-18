@@ -21,6 +21,24 @@ type RegistrationStatus = {
   shopPhone?: string;
   shopEmail?: string;
   idCardNumberMasked?: string;
+  // Additional fields for editing
+  description?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  fullAddress?: string;
+  provinceName?: string;
+  provinceId?: number;
+  districtName?: string;
+  districtId?: number;
+  wardName?: string;
+  wardId?: number;
+  contactName?: string;
+  contactPhone?: string;
+  idCardNumber?: string;
+  idCardName?: string;
+  idCardFrontUrl?: string;
+  idCardBackUrl?: string;
+  selfieWithIdUrl?: string;
 };
 
 const RegistrationStatusScreen = () => {
@@ -33,10 +51,35 @@ const RegistrationStatusScreen = () => {
     try {
       setLoading(true);
       const response = await getRegistrationStatus();
-      setStatus(response?.data || response);
-    } catch (error) {
-      console.error('Error loading status:', error);
-      setStatus(null);
+      const statusData = response?.data || response;
+      setStatus(statusData);
+      
+      // Auto redirect if APPROVED
+      if (statusData?.status === 'APPROVED' || statusData?.status === 'ACTIVE') {
+        setTimeout(() => {
+          Alert.alert(
+            '✅ Đăng ký thành công!',
+            'Tài khoản của bạn đã được kích hoạt quyền bán hàng.',
+            [
+              {
+                text: 'Vào trang Seller',
+                onPress: () => router.replace('/seller'),
+              },
+            ],
+            { cancelable: false }
+          );
+        }, 500);
+      }
+    } catch (error: any) {
+      // 404 means no registration exists - this is expected, not an error
+      if (error?.response?.status === 404) {
+        console.log('📦 No registration found (404)');
+        setStatus(null);
+      } else {
+        // Only log actual errors (network issues, 500, etc.)
+        console.error('❌ Error loading status:', error);
+        setStatus(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -45,6 +88,14 @@ const RegistrationStatusScreen = () => {
   useEffect(() => {
     loadStatus();
   }, []);
+
+  const handleEditRegistration = () => {
+    // Navigate to register form with existing data for editing
+    router.push({
+      pathname: '/customer/register-seller',
+      params: { editData: JSON.stringify(status) },
+    });
+  };
 
   const handleCancelAndResubmit = async () => {
     Alert.alert(
@@ -59,7 +110,7 @@ const RegistrationStatusScreen = () => {
             try {
               await cancelRejectedApplication();
               Alert.alert('Thành công', 'Đã hủy đơn đăng ký. Bạn có thể đăng ký lại.', [
-                { text: 'OK', onPress: () => router.push('/seller/register') },
+                { text: 'OK', onPress: () => handleEditRegistration() },
               ]);
             } catch (error) {
               console.error('Error canceling:', error);
@@ -92,6 +143,7 @@ const RegistrationStatusScreen = () => {
           description: 'Rất tiếc, đơn đăng ký của bạn không được chấp nhận.',
         };
       case 'ACTIVE':
+      case 'APPROVED':
         return {
           color: '#4CAF50',
           bgColor: '#E8F5E9',
@@ -168,8 +220,18 @@ const RegistrationStatusScreen = () => {
         {/* Rejection Reason */}
         {status.status === 'REJECTED' && status.rejectionReason && (
           <View style={styles.rejectionCard}>
-            <Text style={styles.rejectionTitle}>Lý do từ chối</Text>
+            <View style={styles.rejectionHeader}>
+              <Text style={styles.rejectionIcon}>⚠️</Text>
+              <Text style={styles.rejectionTitle}>Lý do từ chối</Text>
+            </View>
             <Text style={styles.rejectionText}>{status.rejectionReason}</Text>
+            <View style={styles.rejectionGuide}>
+              <Text style={styles.rejectionGuideIcon}>💡</Text>
+              <Text style={styles.rejectionGuideText}>
+                Vui lòng đọc kỹ lý do từ chối và chỉnh sửa thông tin theo yêu cầu. 
+                Nhấn nút "Chỉnh sửa đơn đăng ký" bên dưới để cập nhật và gửi lại.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -225,16 +287,33 @@ const RegistrationStatusScreen = () => {
         {/* Actions */}
         <View style={styles.actions}>
           {status.status === 'REJECTED' && (
+            <>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleEditRegistration}
+              >
+                <Text style={styles.primaryButtonText}>✏️ Chỉnh sửa đơn đăng ký</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryButton, canceling && styles.buttonDisabled]}
+                onPress={handleCancelAndResubmit}
+                disabled={canceling}
+              >
+                {canceling ? (
+                  <ActivityIndicator color="#007AFF" />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>🗑️ Hủy và đăng ký mới</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+
+          {(status.status === 'ACTIVE' || status.status === 'APPROVED') && (
             <TouchableOpacity
-              style={[styles.primaryButton, canceling && styles.buttonDisabled]}
-              onPress={handleCancelAndResubmit}
-              disabled={canceling}
+              style={styles.primaryButton}
+              onPress={() => router.replace('/seller')}
             >
-              {canceling ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Đăng ký lại</Text>
-              )}
+              <Text style={styles.primaryButtonText}>Vào Kênh Người bán →</Text>
             </TouchableOpacity>
           )}
 
@@ -331,15 +410,44 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#F44336',
   },
+  rejectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rejectionIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
   rejectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#D32F2F',
-    marginBottom: 8,
   },
   rejectionText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#C62828',
+    lineHeight: 22,
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  rejectionGuide: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFB74D',
+  },
+  rejectionGuideIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  rejectionGuideText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#E65100',
+    lineHeight: 20,
   },
   detailsCard: {
     backgroundColor: '#fff',
