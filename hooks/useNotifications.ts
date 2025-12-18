@@ -8,6 +8,7 @@ import {
   registerForPushNotificationsAsync,
   addNotificationResponseReceivedListener 
 } from '../services/notificationService';
+import { onFCMNotification } from '../services/fcmService';
 
 // Polyfill for React Native
 if (typeof global.TextEncoder === 'undefined') {
@@ -115,25 +116,41 @@ export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BU
     const clientId = clientIdRef.current;
     console.log(`🔌 [${role}] [${clientId}] Connecting to WebSocket for user: ${userId}`);
 
-    // Get base URL and construct SockJS endpoint
-    const baseUrl = API_CONFIG.BASE_URL.replace(/\/api\/?$/, '');
-    const sockJsUrl = `${baseUrl}/ws`;
+    // Get JWT token for authentication
+    let authToken: string | null = null;
     
-    console.log(`🔌 Base URL: ${API_CONFIG.BASE_URL}`);
-    console.log(`🔌 SockJS URL: ${sockJsUrl}`);
+    const initializeConnection = async () => {
+      try {
+        authToken = await AsyncStorage.getItem('access_token');
+        
+        if (!authToken) {
+          console.error('❌ No auth token found, cannot connect to WebSocket');
+          return;
+        }
 
-    try {
-      // Create STOMP client with SockJS
-      const client = new Client({
-        webSocketFactory: () => new SockJS(sockJsUrl) as any,
-        debug: (str) => {
-          // Uncomment for debugging
-          // console.log('🔍 STOMP:', str);
-        },
-        reconnectDelay: 5000,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
-        onConnect: (frame) => {
+        console.log('🔑 Auth token retrieved for WebSocket connection');
+
+        // Get base URL and construct SockJS endpoint with token
+        const baseUrl = API_CONFIG.BASE_URL.replace(/\/api\/?$/, '');
+        const sockJsUrl = `${baseUrl}/ws?token=${authToken}`;
+        
+        console.log(`🔌 Base URL: ${API_CONFIG.BASE_URL}`);
+        console.log(`🔌 SockJS URL: ${baseUrl}/ws?token=***`);
+
+        // Create STOMP client with SockJS
+        const client = new Client({
+          webSocketFactory: () => new SockJS(sockJsUrl) as any,
+          connectHeaders: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+          debug: (str) => {
+            // Uncomment for debugging
+            // console.log('🔍 STOMP:', str);
+          },
+          reconnectDelay: 5000,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+          onConnect: (frame) => {
           console.log(`✅ [${role}] [${clientId}] WebSocket connected`);
           setIsConnected(true);
 
@@ -197,13 +214,17 @@ export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BU
         },
       });
 
-      stompClientRef.current = client;
+        stompClientRef.current = client;
 
-      // Activate the client
-      client.activate();
-    } catch (error) {
-      console.error(`❌ [${role}] [${clientId}] Error creating WebSocket:`, error);
-    }
+        // Activate the client
+        client.activate();
+      } catch (error) {
+        console.error(`❌ [${role}] [${clientId}] Error creating WebSocket:`, error);
+      }
+    };
+
+    // Initialize connection with token
+    initializeConnection();
 
     // Cleanup on unmount
     return () => {
@@ -218,18 +239,20 @@ export function useNotifications(userId?: number, role: 'BUYER' | 'SELLER' = 'BU
   // Helper function to get notification title based on type
   const getNotificationTitle = (type: string): string => {
     switch (type) {
+      case 'ORDER_PLACED':
+        return '🛒 Đơn hàng mới';
       case 'ORDER_CONFIRMED':
-        return '✅ Đơn hàng đã xác nhận';
+        return '✅ Xác nhận đơn hàng';
       case 'ORDER_SHIPPING':
-        return '🚚 Đơn hàng đang giao';
-      case 'ORDER_DELIVERED':
-        return '📦 Đơn hàng đã giao';
+        return '🚚 Đang giao hàng';
+      case 'ORDER_COMPLETED':
+        return '🎉 Hoàn thành';
       case 'ORDER_CANCELLED':
-        return '❌ Đơn hàng đã hủy';
-      case 'PAYMENT_SUCCESS':
-        return '💰 Thanh toán thành công';
-      case 'PAYMENT_FAILED':
-        return '⚠️ Thanh toán thất bại';
+        return '❌ Đã hủy';
+      case 'PAYMENT_RECEIVED':
+        return '💰 Thanh toán';
+      case 'NEW_ORDER':
+        return '🛍️ Đơn hàng mới';
       default:
         return '🔔 Thông báo mới';
     }

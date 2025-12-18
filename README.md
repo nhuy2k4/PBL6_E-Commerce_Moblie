@@ -34,11 +34,16 @@ cd PBL6_E-Commerce_Mobile
 npm install
 ```
 
+Chạy ngrok để test:
+
+- Tải ngrok
+- Mở ngrok.exe
+- Chạy lệnh ngrok http https://localhost:8081
+
 3. Cấu hình API endpoint:
 
 - Copy file `.env.example` thành `.env`
-- Mở file `services/api.ts`
-- Cập nhật `API_BASE_URL` với URL backend của bạn
+- Cập nhật trong `.env` dòng `EXPO_PUBLIC_API_URL` = '{link Forwarding trong ngrok}/api/'
 
 4. Chạy ứng dụng:
 
@@ -173,12 +178,6 @@ Project này sử dụng **Expo Router** cho navigation, cho phép file-based ro
 - `app/_layout.tsx` - Root layout wrapper
 - `app/modal.tsx` - Modal screens
 
-Nếu chạy bằng ngrok:
-
-- Tải ngrok
-- Mở ngrok.exe
-- Chạy lệnh ngrok http https://localhost:8081
-- Sửa trong constants/config.ts thay đổi => BASE_URL: process.env.EXPO_PUBLIC_API_URL || '{link ngrok}/api/'
 
 ## 🤝 Contributing
 

@@ -27,7 +27,7 @@ const fetchProducts = async () => {
   ];
 };
 
-const BASE_IMAGE_URL = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/images/';
+const BASE_IMAGE_URL = process.env.BASE_IMAGE_URL;
 
 function getImageSource(img) {
   if (!img) return defaultProductImage;

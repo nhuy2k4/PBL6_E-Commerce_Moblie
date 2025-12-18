@@ -41,7 +41,6 @@ export default function FlashSaleSection() {
         const productsArray = Array.isArray(response.data.content) 
           ? response.data.content 
           : [];
-        console.log('Flash sale products loaded:', productsArray.length);
         setProducts(productsArray.slice(0, 10));
       } else {
         console.warn('Unexpected response format:', response);
@@ -106,10 +105,6 @@ export default function FlashSaleSection() {
     </View>
   );
 
-  // Chỉ log khi products thay đổi
-  useEffect(() => {
-    console.log('FlashSaleSection products:', products);
-  }, [products]);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header with See All */}

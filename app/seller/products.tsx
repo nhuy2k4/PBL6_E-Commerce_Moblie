@@ -1,207 +1,254 @@
-
-
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, StyleSheet } from 'react-native';
-import { getSellerProducts, addSellerProduct, updateSellerProduct, deleteSellerProduct } from '../../services/sellerService';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  Modal, 
+  TextInput, 
+  StyleSheet,
+  Image,
+  RefreshControl,
+  Alert
+} from 'react-native';
+import { getSellerProducts, deleteSellerProduct } from '../../services/sellerService';
 
-type Product = {
+type SellerProduct = {
   id: number;
   name: string;
-  price: number;
+  description: string;
+  mainImage: string;
+  basePrice: number;
+  isActive: boolean;
+  productCondition: string;
+  rating: number;
+  reviewCount: number;
+  soldCount: number;
+  stock: number;
+  categoryName: string;
+  variants?: any[];
 };
 
 const SellerProducts = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [form, setForm] = useState<{ name: string; price: string }>({ name: '', price: '' });
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(0);
 
-
-  const fetchProducts = () => {
-    setLoading(true);
-    getSellerProducts()
-      .then(setProducts)
-      .finally(() => setLoading(false));
+  const fetchProducts = async (pageNum = 0) => {
+    try {
+      if (!refreshing) setLoading(true);
+      const response = await getSellerProducts(pageNum, 20);
+      setProducts(response.products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách sản phẩm');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts(page);
+  }, [page]);
 
-  const openAddModal = () => {
-    setEditProduct(null);
-    setForm({ name: '', price: '' });
-    setModalVisible(true);
-  };
-
-  const openEditModal = (product: Product) => {
-    setEditProduct(product);
-    setForm({ name: product.name, price: product.price.toString() });
-    setModalVisible(true);
-  };
-
-
-  const handleSave = async () => {
-    try {
-      if (form.name.trim() === '' || form.price.trim() === '') return;
-      const price = parseFloat(form.price);
-      if (isNaN(price)) return;
-      if (editProduct) {
-        await updateSellerProduct(editProduct.id, { name: form.name, price });
-      } else {
-        await addSellerProduct({ name: form.name, price });
-      }
-      setModalVisible(false);
-      fetchProducts();
-    } catch (e) {
-      // TODO: Hiển thị thông báo lỗi
-    }
+  const onRefresh = () => {
+    setRefreshing(true);
+    setPage(0);
+    fetchProducts(0);
   };
 
   const handleDelete = async (id: number) => {
-    try {
-      await deleteSellerProduct(id);
-      fetchProducts();
-    } catch (e) {
-      // TODO: Hiển thị thông báo lỗi
-    }
+    Alert.alert(
+      'Xác nhận xóa',
+      'Bạn có chắc chắn muốn xóa sản phẩm này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteSellerProduct(id);
+              Alert.alert('Thành công', 'Đã xóa sản phẩm');
+              fetchProducts(page);
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể xóa sản phẩm');
+            }
+          },
+        },
+      ]
+    );
   };
 
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <View style={{ padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Quản lý sản phẩm</Text>
-        <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
-          <Text style={{ color: '#fff', fontSize: 18 }}>＋</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
-        renderItem={({ item }: { item: Product }) => (
-          <View style={styles.itemCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.name}</Text>
-              <Text style={{ color: '#888', marginTop: 2 }}>Giá: {item.price}₫</Text>
-            </View>
-            <TouchableOpacity onPress={() => openEditModal(item)} style={styles.editBtn}>
-              <Text style={{ color: '#fff' }}>Sửa</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-              <Text style={{ color: '#fff' }}>Xóa</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+  const renderProduct = ({ item }: { item: SellerProduct }) => (
+    <View style={styles.productCard}>
+      <Image 
+        source={{ uri: item.mainImage }} 
+        style={styles.productImage}
+        defaultSource={require('@/assets/images/icon.png')}
       />
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-              {editProduct ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Tên sản phẩm"
-              value={form.name}
-              onChangeText={name => setForm(f => ({ ...f, name }))}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Giá"
-              keyboardType="numeric"
-              value={form.price}
-              onChangeText={price => setForm(f => ({ ...f, price }))}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
-                <Text>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-                <Text style={{ color: '#fff' }}>Lưu</Text>
-              </TouchableOpacity>
-            </View>
+      <View style={styles.productInfo}>
+        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productPrice}>{formatCurrency(item.basePrice)}</Text>
+        <View style={styles.productMeta}>
+          <Text style={styles.metaText}>Kho: {item.stock}</Text>
+          <Text style={styles.metaText}>Đã bán: {item.soldCount}</Text>
+          <Text style={styles.metaText}>⭐ {item.rating.toFixed(1)}</Text>
+        </View>
+        <View style={styles.productBadges}>
+          <View style={[styles.badge, { backgroundColor: item.isActive ? '#4CAF50' : '#F44336' }]}>
+            <Text style={styles.badgeText}>{item.isActive ? 'Đang bán' : 'Tạm ẩn'}</Text>
+          </View>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.categoryName}</Text>
           </View>
         </View>
-      </Modal>
+      </View>
+      <TouchableOpacity 
+        onPress={() => handleDelete(item.id)} 
+        style={styles.deleteBtn}
+      >
+        <Text style={styles.deleteBtnText}>✕</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={products}
+        renderItem={renderProduct}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Chưa có sản phẩm nào</Text>
+          </View>
+        }
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  addBtn: {
-    backgroundColor: '#007bff',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  editBtn: {
-    backgroundColor: '#28a745',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 8,
-  },
-  deleteBtn: {
-    backgroundColor: '#dc3545',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 8,
-  },
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
-  modalContent: {
+  listContainer: {
+    padding: 16,
+  },
+  productCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
-    width: '85%',
-    elevation: 4,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 10,
+  productImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
+  productInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'space-between',
   },
-  saveBtn: {
-    backgroundColor: '#007bff',
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  productName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  productPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#F44336',
+    marginBottom: 4,
+  },
+  productMeta: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  productBadges: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  badge: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F44336',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
   },
 });
 
