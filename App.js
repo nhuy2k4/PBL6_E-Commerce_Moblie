@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text, Image, StyleSheet } from 'react-native';
+import { useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 const defaultProductImage = require('./assets/images/default-product.png');
 
 // Hàm lấy dữ liệu sản phẩm mẫu (hoặc gọi API thực tế nếu muốn)
@@ -12,32 +14,27 @@ const fetchProducts = async () => {
       price: 150000,
       image: 'mouse_main.jpg',
     },
+  const { user } = useAuth();
     {
       id: 2,
       name: 'Bluetooth Headphones',
-      price: 650000,
-      image: 'headphone_main.jpg',
-    },
-    {
-      id: 3,
-      name: 'Ceramic Coffee Mug',
-      price: 90000,
-      image: '', // Không có ảnh, sẽ dùng mặc định
-    },
-  ];
-};
+  }, []);
 
-const BASE_IMAGE_URL = process.env.BASE_IMAGE_URL;
-
-function getImageSource(img) {
-  if (!img) return defaultProductImage;
-  if (img.startsWith('http')) return { uri: img };
-  return { uri: BASE_IMAGE_URL + img };
-}
-
-export default function App() {
+  useEffect(() => {
+    if (!user || !user.id || !user.role) return;
+    connectNotificationSocket({
+      userId: user.id,
+      role: user.role,
+      onNotification: (notif) => {
+        console.log('🔔 Notification received:', notif);
+        // Ở đây bạn có thể cập nhật state hoặc dispatch vào context/store
+      },
+      onConnection: (connected) => {
+        console.log('🔌 Socket connected:', connected);
+      }
+    });
+function AppContent() {
   const [products, setProducts] = useState([]);
-
   useEffect(() => {
     fetchProducts().then(setProducts);
   }, []);
@@ -49,6 +46,17 @@ export default function App() {
       />
     </View>
   );
+}
+
+export default function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
+  );
+        style={{ width: 120, height: 120, backgroundColor: 'red', borderWidth: 2, borderColor: 'blue' }}
+      />
+    </View>
   );
 }
 

@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as cartService from '../services/cartService';
-import { Cart, CartItem } from '@/types';
+import { Cart } from '@/types';
 
 interface CartContextType {
   cart: Cart | null;
-  items: any[]; // Shortcut to cart.items
+  items: any[];
   isLoading: boolean;
-  getTotalPrice: () => number; // Helper to get total price
+  getTotalPrice: () => number;
   addToCart: (productId: number, quantity?: number) => Promise<void>;
   updateQuantity: (itemId: number, quantity: number) => Promise<void>;
   removeFromCart: (itemId: number) => Promise<void>;
@@ -25,66 +25,65 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     clearCartOnLogout.set(() => {
       console.log('🧹 Clearing cart on logout');
-      setCart({ items: [], totalAmount: 0, totalItems: 0 });
+      setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
     });
-    
+
     refreshCartOnLogin.set(async () => {
       console.log('🔄 Refreshing cart on login');
       await refreshCart();
     });
   }, []);
 
+  const getStoredToken = async (): Promise<string | null> => {
+    return (await AsyncStorage.getItem('access_token')) || (await AsyncStorage.getItem('token'));
+  };
+
   const refreshCart = async () => {
     try {
       setIsLoading(true);
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await getStoredToken();
       if (token) {
         const cartData = await cartService.getCart();
         setCart(cartData);
       } else {
-        setCart({ items: [], totalAmount: 0, totalItems: 0 });
+        setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
-      setCart({ items: [], totalAmount: 0, totalItems: 0 });
+      setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // Fetch cart from backend if user is logged in
     const initCart = async () => {
       try {
         setIsLoading(true);
-        const token = await AsyncStorage.getItem('access_token');
-        
+        const token = await getStoredToken();
         if (token) {
-          // User is logged in, fetch cart from backend
           console.log('User logged in, fetching cart from database...');
           const cartData = await cartService.getCart();
           console.log('Cart data from database:', cartData);
           setCart(cartData);
         } else {
-          // User not logged in, set empty cart
           console.log('User not logged in, using empty cart');
-          setCart({ items: [], totalAmount: 0, totalItems: 0 });
+          setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
         }
       } catch (error) {
         console.error('Error fetching cart:', error);
-        // On error, set empty cart
-        setCart({ items: [], totalAmount: 0, totalItems: 0 });
+        setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     initCart();
   }, []);
 
   const addToCart = async (productVariantId: number, quantity: number = 1) => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await getStoredToken();
       if (!token) throw new Error('User not logged in');
       await cartService.addToCart(productVariantId, quantity);
       await refreshCart();
@@ -96,7 +95,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = async (cartItemId: number, quantity: number) => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await getStoredToken();
       if (!token) throw new Error('User not logged in');
       await cartService.updateCartItem(cartItemId, quantity);
       await refreshCart();
@@ -108,7 +107,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const removeFromCart = async (cartItemId: number) => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await getStoredToken();
       if (!token) throw new Error('User not logged in');
       await cartService.removeFromCart(cartItemId);
       await refreshCart();
@@ -120,10 +119,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = async () => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await getStoredToken();
       if (!token) throw new Error('User not logged in');
       await cartService.clearCart();
-      setCart({ items: [], totalAmount: 0, totalItems: 0 });
+      setCart({ items: [], totalAmount: 0, totalItems: 0 } as any);
     } catch (error) {
       console.error('Error clearing cart:', error);
       throw error;
