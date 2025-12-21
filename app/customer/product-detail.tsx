@@ -642,6 +642,8 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.buyNowButton}
+          onPress={handleBuyNow}
+          accessibilityRole="button"
         >
           <Ionicons name="bag-handle" size={20} color="#FFF" />
           <Text style={styles.buyNowText}>Buy Now</Text>

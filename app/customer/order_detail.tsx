@@ -13,8 +13,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getOrderDetail, cancelOrder } from '../../services/orderService';
+import { addToCart, clearCart, getCart } from '../../services/cartService';
 import { checkReviewEligibility } from '../../services/reviewService';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadFile } from '../../services/uploadService';
+import { createRefund } from '../../services/refundService';
 
 interface OrderItem {
   id: number;
@@ -50,9 +54,15 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [reviewEligibility, setReviewEligibility] = useState<{[key: number]: {canReview: boolean, hasReviewed: boolean}}>({});
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundDetail, setRefundDetail] = useState('');
+  const [refundAttachments, setRefundAttachments] = useState<string[]>([]);
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -138,6 +148,130 @@ const OrderDetailPage = () => {
       Alert.alert('Lỗi', 'Không thể hủy đơn hàng');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleReorder = () => {
+    if (!order) return;
+    Alert.alert('Xác nhận', 'Bạn muốn đặt lại đơn hàng này?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đồng ý',
+        onPress: async () => {
+          setReordering(true);
+          try {
+            // Add each item from order to cart. Do NOT clear cart first to avoid empty cart if any add fails.
+            const failed: Array<{ item: any; error: any }> = [];
+            let addedCount = 0;
+            for (const item of order.items) {
+              const variantId = item.variantId || item.productId;
+              if (!variantId || isNaN(variantId)) {
+                console.warn('Invalid variantId for reorder item:', item);
+                failed.push({ item, error: 'Invalid variant id' });
+                continue;
+              }
+              try {
+                await addToCart(variantId, item.quantity || 1);
+                addedCount++;
+              } catch (err) {
+                console.error('Error adding item to cart during reorder:', item, err);
+                failed.push({ item, error: err });
+              }
+            }
+
+            if (addedCount > 0) {
+              // fetch cart to confirm
+              try {
+                const cart = await getCart();
+                console.log('DEBUG cart after reorder:', cart);
+                const cartCount = cart?.items?.length || 0;
+                const msg = failed.length > 0
+                  ? `Thêm ${addedCount} sản phẩm vào giỏ hàng. ${failed.length} sản phẩm không thể thêm. Giỏ hàng hiện có ${cartCount} mục.`
+                  : `Sản phẩm đã được thêm vào giỏ hàng. Giỏ hàng hiện có ${cartCount} mục.`;
+                Alert.alert('Kết quả', msg);
+                if (cartCount > 0) router.push('/customer/checkout');
+              } catch (errCart) {
+                console.error('Error fetching cart after reorder:', errCart);
+                Alert.alert('Kết quả', `Đã thêm ${addedCount} sản phẩm. Không thể kiểm tra giỏ hàng.`);
+                router.push('/customer/checkout');
+              }
+            } else {
+              console.warn('No items added during reorder:', failed);
+              Alert.alert('Lỗi', 'Không thể thêm sản phẩm nào vào giỏ hàng. Vui lòng kiểm tra lại.');
+            }
+          } catch (error) {
+            console.error('❌ Error re-ordering:', error);
+            Alert.alert('Lỗi', 'Không thể đặt lại đơn hàng. Vui lòng thử lại');
+          } finally {
+            setReordering(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const pickImageAndUpload = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Quyền bị từ chối', 'Vui lòng cho phép truy cập ảnh để upload');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, base64: false });
+      if (res.cancelled) return;
+      const uri = res.uri;
+      const filename = uri.split('/').pop() || 'photo.jpg';
+      const formData = new FormData();
+      // @ts-ignore - React Native FormData file object
+      formData.append('file', {
+        uri,
+        name: filename,
+        type: 'image/jpeg',
+      } as any);
+      const uploadRes = await uploadFile(formData);
+      // uploadRes expected to contain uploaded file URL(s)
+      if (uploadRes && uploadRes.url) {
+        setRefundAttachments((s) => [...s, uploadRes.url]);
+      } else if (Array.isArray(uploadRes)) {
+        // backend may return array
+        setRefundAttachments((s) => [...s, ...(uploadRes.map((x: any) => x.url || x))]);
+      } else {
+        console.warn('Upload returned unexpected:', uploadRes);
+      }
+    } catch (error) {
+      console.error('Error picking/uploading image:', error);
+      Alert.alert('Lỗi', 'Không thể upload ảnh');
+    }
+  };
+
+  const submitRefundRequest = async () => {
+    if (!order) return;
+    if (!refundReason.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng chọn lý do hoàn tiền');
+      return;
+    }
+    setIsSubmittingRefund(true);
+    try {
+      const items = order.items.map((it) => ({ productId: it.productId, variantId: it.variantId, quantity: it.quantity }));
+      const payload = {
+        orderId: order.id,
+        items,
+        reason: refundReason,
+        detail: refundDetail,
+        attachments: refundAttachments,
+        refundMethod: 'ORIGINAL',
+      };
+      const res = await createRefund(payload as any);
+      console.log('Refund created:', res);
+      Alert.alert('Gửi thành công', 'Yêu cầu hoàn tiền đã được gửi');
+      setShowRefundModal(false);
+      // reload order detail to reflect changes
+      await loadOrderDetail();
+    } catch (error) {
+      console.error('Error creating refund:', error);
+      Alert.alert('Lỗi', 'Không thể gửi yêu cầu hoàn tiền');
+    } finally {
+      setIsSubmittingRefund(false);
     }
   };
 
@@ -405,6 +539,38 @@ const OrderDetailPage = () => {
         </View>
       )}
 
+      {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.reorderButton, reordering && styles.disabledButton]}
+            onPress={handleReorder}
+            disabled={reordering}
+          >
+            {reordering ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="cart" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>Đặt lại đơn hàng</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Refund Button */}
+      {(order.status === 'COMPLETED' || order.status === 'SHIPPING') && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.refundButton]}
+            onPress={() => setShowRefundModal(true)}
+          >
+            <Ionicons name="refund" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Yêu cầu hoàn tiền</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={{ height: 20 }} />
 
       {/* Cancel Order Modal */}
@@ -455,6 +621,44 @@ const OrderDetailPage = () => {
                 ) : (
                   <Text style={styles.modalButtonTextConfirm}>Xác nhận hủy</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Refund Modal */}
+      <Modal visible={showRefundModal} transparent animationType="slide" onRequestClose={() => setShowRefundModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Yêu cầu hoàn tiền</Text>
+              <TouchableOpacity onPress={() => setShowRefundModal(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Lý do</Text>
+            <TextInput style={styles.modalInput} placeholder="Lý do hoàn tiền" value={refundReason} onChangeText={setRefundReason} />
+
+            <Text style={[styles.modalLabel, { marginTop: 8 }]}>Mô tả chi tiết</Text>
+            <TextInput style={styles.modalInput} placeholder="Mô tả thêm (tùy chọn)" value={refundDetail} onChangeText={setRefundDetail} multiline />
+
+            <TouchableOpacity style={[styles.modalButton, { marginTop: 8 }]} onPress={pickImageAndUpload}>
+              <Text style={{ color: '#1976D2', fontWeight: '700' }}>Thêm ảnh/chứng cứ</Text>
+            </TouchableOpacity>
+
+            <View style={styles.attachmentRow}>
+              {refundAttachments.map((uri, idx) => (
+                <Image key={idx} source={{ uri }} style={styles.attachmentThumb} />
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonCancel]} onPress={() => setShowRefundModal(false)}>
+                <Text style={styles.modalButtonTextCancel}>Đóng</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonConfirm]} onPress={submitRefundRequest} disabled={isSubmittingRefund}>
+                {isSubmittingRefund ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonTextConfirm}>Gửi yêu cầu</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -680,6 +884,9 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#F44336',
   },
+  reorderButton: {
+    backgroundColor: '#1976D2',
+  },
   disabledButton: {
     opacity: 0.6,
   },
@@ -764,6 +971,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  refundButton: {
+    backgroundColor: '#9C27B0',
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  attachmentThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
   },
 });
 

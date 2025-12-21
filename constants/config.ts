@@ -118,6 +118,19 @@ export const API_ENDPOINTS = {
     CREATE: (productId: number) => `products/${productId}/reviews`,
     GET_PRODUCT_REVIEWS: (productId: number) => `products/${productId}/reviews`,
   },
+  
+  // Refund / Return
+  REFUND: {
+    CREATE: 'refunds',
+    BY_ORDER: (orderId: number) => `refunds/order/${orderId}`,
+    DETAIL: (refundId: number) => `refunds/${refundId}`,
+    CANCEL: (refundId: number) => `refunds/${refundId}/cancel`,
+  },
+
+  // File upload
+  FILE: {
+    UPLOAD: 'files/upload',
+  },
 };
 
 export const APP_CONFIG = {

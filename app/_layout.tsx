@@ -2,12 +2,15 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { Linking } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
+import { NotificationProvider } from '@/context/NotificationContext';
 import { configureGoogleSignIn } from '@/services/nativeGoogleAuth';
 import { initializeFCM, setupBackgroundHandler, isFCMActive, getFCMStatus, refreshFCMToken } from '@/services/fcmService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -108,17 +111,21 @@ export default function RootLayout() {
   }, [router]);
 
   return (
-    <AuthProvider>
-      <CartProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="seller" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </CartProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <CartProvider>
+          <NotificationProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="seller" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              </Stack>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </NotificationProvider>
+        </CartProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

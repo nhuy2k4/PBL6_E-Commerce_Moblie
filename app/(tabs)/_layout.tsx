@@ -3,10 +3,26 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/styles/theme';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNotification } from '@/context/NotificationContext';
 
 import { useColorScheme } from '../../hooks/use-color-scheme';
+
+function NotificationTabIcon({ color }: { color: string }) {
+  const { unreadCount } = useNotification();
+  
+  return (
+    <View style={{ width: 28, height: 28 }}>
+      <IconSymbol size={28} name="bell.fill" color={color} />
+      {unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -36,7 +52,7 @@ export default function TabLayout() {
         name="notification"
         options={{
           title: 'Notification',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell.fill" color={color} />,
+          tabBarIcon: ({ color }) => <NotificationTabIcon color={color} />,
         }}
       />
       <Tabs.Screen
@@ -49,3 +65,23 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#ff4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+});

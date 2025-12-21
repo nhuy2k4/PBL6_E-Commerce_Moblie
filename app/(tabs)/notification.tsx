@@ -3,15 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/context/AuthContext';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotification } from '@/context/NotificationContext';
+import NotificationItem from '@/components/NotificationItem';
 
 export default function NotificationScreen() {
   const colorScheme = useColorScheme();
@@ -27,11 +27,10 @@ export default function NotificationScreen() {
     notifications, 
     isConnected, 
     markAsRead, 
-    markAllAsRead,
-    clearAll,
     deleteNotification,
+    clearAll,
     unreadCount 
-  } = useNotifications(user?.id, user?.role || 'BUYER');
+  } = useNotification();
 
   // Debug notifications state
   React.useEffect(() => {
@@ -43,48 +42,19 @@ export default function NotificationScreen() {
     }
   }, [notifications, unreadCount, isConnected]);
 
-  // Helper function to format timestamp
-  const formatTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days} ngày trước`;
-    if (hours > 0) return `${hours} giờ trước`;
-    if (minutes > 0) return `${minutes} phút trước`;
-    return 'Vừa xong';
-  };
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'ORDER_CONFIRMED':
-      case 'ORDER_SHIPPING':
-      case 'ORDER_DELIVERED':
-      case 'ORDER_CANCELLED':
-        return 'cube-outline';
-      case 'promotion':
-        return 'pricetag-outline';
-      default:
-        return 'notifications-outline';
-    }
-  };
-
-  const handleNotificationPress = async (notif: any) => {
+  const handleNotificationPress = (notif: any) => {
     if (!notif.read) {
-      await markAsRead(notif.id);
+      markAsRead(notif.id);
     }
     // TODO: Navigate to order detail screen if needed
   };
 
-  const handleMarkAllRead = async () => {
-    await markAllAsRead();
+  const handleMarkAllRead = () => {
+    markAllAsRead();
   };
 
-  const handleClearAll = async () => {
-    await clearAll();
+  const handleClearAll = () => {
+    clearAll();
   };
 
   return (
@@ -117,57 +87,27 @@ export default function NotificationScreen() {
         </View>
       )}
 
-      <ScrollView>
-        {notifications.length === 0 ? (
+      <FlatList
+        data={notifications}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <NotificationItem
+            notification={item}
+            onDelete={deleteNotification}
+            onPress={handleNotificationPress}
+            colors={colors}
+          />
+        )}
+        contentContainerStyle={notifications.length === 0 ? styles.emptyContainerFlex : undefined}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="notifications-outline" size={64} color={colors.icon} />
             <Text style={[styles.emptyText, { color: colors.icon }]}>
               Chưa có thông báo nào
             </Text>
           </View>
-        ) : (
-          notifications.map((notification) => (
-            <TouchableOpacity
-              key={notification.id}
-              style={[
-                styles.notificationItem,
-                { 
-                  backgroundColor: notification.read 
-                    ? colors.background 
-                    : colors.tint + '10' 
-                }
-              ]}
-              onPress={() => handleNotificationPress(notification)}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: colors.tint + '20' }]}>
-                <Ionicons 
-                  name={getIcon(notification.type) as any} 
-                  size={24} 
-                  color={colors.tint} 
-                />
-              </View>
-              <View style={styles.contentContainer}>
-                <Text style={[styles.message, { color: colors.text, fontWeight: '600' }]}>
-                  {notification.message}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                  <Text style={[styles.time, { color: colors.icon }]}>
-                    {formatTime(notification.timestamp)}
-                  </Text>
-                  {notification.type && (
-                    <Text style={[styles.type, { color: colors.icon }]}>
-                      {' • '}{notification.type}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              {!notification.read && (
-                <View style={[styles.unreadDot, { backgroundColor: colors.tint }]} />
-              )}
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }
@@ -225,6 +165,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  emptyContainerFlex: {
+    flexGrow: 1,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -234,41 +177,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginTop: 16,
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  message: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  time: {
-    fontSize: 12,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 8,
   },
 });

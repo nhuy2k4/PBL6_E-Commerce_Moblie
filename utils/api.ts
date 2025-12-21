@@ -28,7 +28,7 @@ const processQueue = (error: any = null, token: string | null = null) => {
  * Clear all auth data and redirect to login
  */
 const clearAuthAndRedirect = async () => {
-  await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user_info']);
+  await AsyncStorage.multiRemove(['access_token', 'token', 'refresh_token', 'refreshToken', 'user_info', 'user']);
   // TODO: Navigate to login screen
   // This should be handled by your navigation setup
   console.warn('Session expired, please login again');
@@ -49,7 +49,7 @@ const fetchWithTimeout = (resource: RequestInfo, options: RequestInit = {}, time
 
 const refreshAccessToken = async (): Promise<string | null> => {
   try {
-    const refreshToken = await AsyncStorage.getItem('refresh_token');
+    const refreshToken = (await AsyncStorage.getItem('refresh_token')) || (await AsyncStorage.getItem('refreshToken'));
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -71,10 +71,12 @@ const refreshAccessToken = async (): Promise<string | null> => {
     // Backend returns: { status: 200, data: { token, refreshToken } }
     if (data.data) {
       const { token: newAccessToken, refreshToken: newRefreshToken } = data.data;
-      // Save new tokens
+      // Save new tokens under both common keys for compatibility
       await AsyncStorage.setItem('access_token', newAccessToken);
+      await AsyncStorage.setItem('token', newAccessToken);
       if (newRefreshToken) {
         await AsyncStorage.setItem('refresh_token', newRefreshToken);
+        await AsyncStorage.setItem('refreshToken', newRefreshToken);
       }
       return newAccessToken;
     }
@@ -93,7 +95,7 @@ export const fetchWithAuth = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  const token = await AsyncStorage.getItem('access_token');
+  const token = (await AsyncStorage.getItem('access_token')) || (await AsyncStorage.getItem('token'));
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -186,7 +188,7 @@ export const buildUrl = (endpoint: string | ((param: any) => string), param?: an
  * Check if user is authenticated
  */
 export const isAuthenticated = async (): Promise<boolean> => {
-  const token = await AsyncStorage.getItem('access_token');
+  const token = (await AsyncStorage.getItem('access_token')) || (await AsyncStorage.getItem('token'));
   return !!token;
 };
 
@@ -194,14 +196,14 @@ export const isAuthenticated = async (): Promise<boolean> => {
  * Get current access token
  */
 export const getAccessToken = async (): Promise<string | null> => {
-  return AsyncStorage.getItem('access_token');
+  return (await AsyncStorage.getItem('access_token')) || (await AsyncStorage.getItem('token'));
 };
 
 /**
  * Get current refresh token
  */
 export const getRefreshToken = async (): Promise<string | null> => {
-  return AsyncStorage.getItem('refresh_token');
+  return (await AsyncStorage.getItem('refresh_token')) || (await AsyncStorage.getItem('refreshToken'));
 };
 
 /**
