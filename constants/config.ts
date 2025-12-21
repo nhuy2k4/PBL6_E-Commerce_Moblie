@@ -54,6 +54,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (id: number) => `products/${id}`,
     SEARCH: 'products/search',
     BY_CATEGORY: (categoryId: number) => `products/category/${categoryId}`,
+    BY_SHOP: (shopId: number) => `products/shop/${shopId}`,
   },
   
   // Category
@@ -117,6 +118,17 @@ export const API_ENDPOINTS = {
     CHECK_ELIGIBILITY: (productId: number) => `products/${productId}/review-eligibility`,
     CREATE: (productId: number) => `products/${productId}/reviews`,
     GET_PRODUCT_REVIEWS: (productId: number) => `products/${productId}/reviews`,
+  },
+
+  // Search
+  SEARCH: {
+    SUGGESTIONS: 'search/suggestions',
+    TRENDING: 'search/trending',
+    TRACK: 'search/track',
+    TRACK_CLICK: 'search/track-click',
+    FACETS: 'search/facets',
+    HISTORY: 'search/history',
+    SHOPS: 'search/shops',
   },
 };
 

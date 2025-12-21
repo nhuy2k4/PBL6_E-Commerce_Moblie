@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   View,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Platform,
@@ -29,15 +28,14 @@ export default function HomeHeader() {
       {/* Search Bar */}
       <View style={[styles.searchContainer, { backgroundColor: sportColors.primaryLight + '33' }]}> 
         <Ionicons name="search-outline" size={20} color={sportColors.textWhite} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: sportColors.textWhite }]}
-          placeholder="Tìm kiếm sản phẩm..."
-          placeholderTextColor={sportColors.textWhite + 'B3'}
-          onFocus={() => {
-            // Navigate to search screen
-            console.log('Navigate to search');
-          }}
-        />
+        <TouchableOpacity
+          style={styles.searchInputTouchable}
+          onPress={() => router.push('/customer/search')}
+        >
+          <Text style={[styles.searchPlaceholder, { color: sportColors.textWhite + 'B3' }]}>
+            Tìm kiếm sản phẩm...
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Right Icons */}
@@ -92,9 +90,11 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
+  searchInputTouchable: {
     flex: 1,
-    color: '#fff',
+    justifyContent: 'center',
+  },
+  searchPlaceholder: {
     fontSize: 14,
   },
   rightIcons: {

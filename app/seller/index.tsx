@@ -9,6 +9,7 @@ const BuyerRegisterView = () => {
   const router = useRouter();
   const [hasRegistration, setHasRegistration] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [isApprovedSeller, setIsApprovedSeller] = useState(false);
 
   useEffect(() => {
     checkRegistrationStatus();
@@ -18,15 +19,21 @@ const BuyerRegisterView = () => {
     try {
       console.log('🔍 Checking registration status...');
       const response = await getRegistrationStatus();
-      const status = response?.data?.status;
+      const statusData = response?.data?.data || response?.data || response;
+      const status = statusData?.status;
       
       console.log('✅ Registration status:', status);
       
-      // If has registration status, redirect to status page
-      if (status) {
+      // If status is ACTIVE or APPROVED, show seller dashboard
+      if (status === 'ACTIVE' || status === 'APPROVED') {
+        console.log('✅ User is approved seller, showing SellerNavigator');
+        setIsApprovedSeller(true);
+        setHasRegistration(false);
+      }
+      // If status is PENDING or REJECTED, redirect to status page
+      else if (status === 'PENDING' || status === 'REJECTED') {
         setHasRegistration(true);
-        console.log('📋 Has registration, redirecting to status page...');
-        // Auto redirect to status page after component mounts
+        console.log('📋 Has pending/rejected registration, redirecting to status page...');
         setTimeout(() => {
           router.replace('/seller/registration-status');
         }, 100);
@@ -56,6 +63,11 @@ const BuyerRegisterView = () => {
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
+  }
+
+  // If approved seller, show SellerNavigator
+  if (isApprovedSeller) {
+    return <SellerNavigator />;
   }
 
   return (

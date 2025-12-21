@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAddresses, setPrimaryAddress, deleteAddress } from '../../services/addressService';
 import type { Address } from '../../types';
 
+export const options = { headerShown: false };
+
 export default function AddressesScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

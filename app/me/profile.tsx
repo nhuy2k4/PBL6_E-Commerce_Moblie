@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 import type { UserProfile, UpdateProfileDTO } from '../../types';
 
+export const options = { headerShown: false };
+
 export default function ProfileScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

@@ -12,6 +12,8 @@ import { configureGoogleSignIn } from '@/services/nativeGoogleAuth';
 import { initializeFCM, setupBackgroundHandler, isFCMActive, getFCMStatus, refreshFCMToken } from '@/services/fcmService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+
 // Setup FCM background handler (safe - checks internally if FCM is enabled)
 setupBackgroundHandler();
 
@@ -114,6 +116,7 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="seller" options={{ headerShown: false }} />
+            <Stack.Screen name="customer" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />

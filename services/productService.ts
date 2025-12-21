@@ -67,6 +67,7 @@ export async function getProductById(id: number): Promise<any> {
 export async function searchProducts(filters: {
   keyword?: string;
   categoryId?: number;
+  shopId?: number;
   minPrice?: number;
   maxPrice?: number;
   minRating?: number;
@@ -78,6 +79,7 @@ export async function searchProducts(filters: {
     
     if (filters.keyword) url.searchParams.append('name', filters.keyword);
     if (filters.categoryId) url.searchParams.append('categoryId', filters.categoryId.toString());
+    if (filters.shopId) url.searchParams.append('shopId', filters.shopId.toString());
     if (filters.minPrice) url.searchParams.append('minPrice', filters.minPrice.toString());
     if (filters.maxPrice) url.searchParams.append('maxPrice', filters.maxPrice.toString());
     if (filters.minRating) url.searchParams.append('minRating', filters.minRating.toString());
@@ -86,6 +88,23 @@ export async function searchProducts(filters: {
     
     const response = await fetchApi(url.toString());
     console.log('🔍 searchProducts response:', response);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Get products by shop ID
+ */
+export async function getProductsByShopId(shopId: number, page: number = 0, size: number = 12): Promise<any> {
+  try {
+    const url = new URL(buildUrl(API_ENDPOINTS.PRODUCT.BY_SHOP(shopId)));
+    url.searchParams.append('page', page.toString());
+    url.searchParams.append('size', size.toString());
+    
+    const response = await fetchApi(url.toString());
+    console.log('🔍 getProductsByShopId response:', response);
     return response;
   } catch (error) {
     throw error;

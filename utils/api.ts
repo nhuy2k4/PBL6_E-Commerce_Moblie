@@ -205,6 +205,45 @@ export const getRefreshToken = async (): Promise<string | null> => {
 };
 
 /**
+ * Fetch for public endpoints (no auth required)
+ */
+export const fetchPublic = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  const response = await fetchWithTimeout(url, {
+    ...options,
+    headers,
+  }, API_CONFIG.TIMEOUT);
+
+  return response;
+};
+
+/**
+ * Fetch JSON for public endpoints
+ */
+export const fetchJsonPublic = async <T = any>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const response = await fetchPublic(url, options);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ 
+      message: `HTTP ${response.status}` 
+    }));
+    throw new Error(errorData.message || `HTTP ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+/**
  * Handle API errors
  */
 export const handleApiError = (error: any): string => {
