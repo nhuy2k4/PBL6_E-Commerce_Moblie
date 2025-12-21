@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { changePassword } from '../../services/userService';
 import type { ChangePasswordDTO } from '../../types';
 
+export const options = { headerShown: false };
+
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);

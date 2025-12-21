@@ -20,6 +20,8 @@ import ProductExplorer from '@/components/home/ProductExplorer';
 import ServiceFeatures from '@/components/home/ServiceFeatures';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 
+export const options = { headerShown: false };
+
 export default function HomeScreen() {
   const { user, isLoading } = useAuth();
   const colorScheme = useColorScheme();

@@ -16,6 +16,8 @@ import { addAddress, updateAddress, getAddresses } from '../../services/addressS
 import { getProvinces, getDistricts, getWards } from '../../services/addressService';
 import type { Address } from '../../types';
 
+export const options = { headerShown: false };
+
 export default function AddEditAddressScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();

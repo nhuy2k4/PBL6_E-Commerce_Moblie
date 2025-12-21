@@ -51,32 +51,14 @@ const RegistrationStatusScreen = () => {
     try {
       setLoading(true);
       const response = await getRegistrationStatus();
-      const statusData = response?.data || response;
+      // API may wrap payload as response.data.data or response.data
+      const statusData = response?.data?.data || response?.data || response;
       setStatus(statusData);
-      
-      // Auto redirect if APPROVED
-      if (statusData?.status === 'APPROVED' || statusData?.status === 'ACTIVE') {
-        setTimeout(() => {
-          Alert.alert(
-            '✅ Đăng ký thành công!',
-            'Tài khoản của bạn đã được kích hoạt quyền bán hàng.',
-            [
-              {
-                text: 'Vào trang Seller',
-                onPress: () => router.replace('/seller'),
-              },
-            ],
-            { cancelable: false }
-          );
-        }, 500);
-      }
     } catch (error: any) {
-      // 404 means no registration exists - this is expected, not an error
       if (error?.response?.status === 404) {
         console.log('📦 No registration found (404)');
         setStatus(null);
       } else {
-        // Only log actual errors (network issues, 500, etc.)
         console.error('❌ Error loading status:', error);
         setStatus(null);
       }

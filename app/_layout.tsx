@@ -15,6 +15,8 @@ import { configureGoogleSignIn } from '@/services/nativeGoogleAuth';
 import { initializeFCM, setupBackgroundHandler, isFCMActive, getFCMStatus, refreshFCMToken } from '@/services/fcmService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+
 // Setup FCM background handler (safe - checks internally if FCM is enabled)
 setupBackgroundHandler();
 

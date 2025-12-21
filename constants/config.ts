@@ -54,6 +54,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (id: number) => `products/${id}`,
     SEARCH: 'products/search',
     BY_CATEGORY: (categoryId: number) => `products/category/${categoryId}`,
+    BY_SHOP: (shopId: number) => `products/shop/${shopId}`,
   },
   
   // Category
@@ -140,6 +141,17 @@ export const API_ENDPOINTS = {
   // File upload
   FILE: {
     UPLOAD: 'files/upload',
+  },
+
+  // Search
+  SEARCH: {
+    SUGGESTIONS: 'search/suggestions',
+    TRENDING: 'search/trending',
+    TRACK: 'search/track',
+    TRACK_CLICK: 'search/track-click',
+    FACETS: 'search/facets',
+    HISTORY: 'search/history',
+    SHOPS: 'search/shops',
   },
 };
 

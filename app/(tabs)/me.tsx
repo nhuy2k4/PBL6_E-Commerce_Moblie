@@ -12,6 +12,8 @@ import { Colors } from '../../styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/context/AuthContext';
 
+export const options = { headerShown: false };
+
 interface MenuItem {
   id: string;
   icon: string;
