@@ -61,8 +61,7 @@ export default function HomeHeader() {
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => {
-            // Navigate to messages
-            console.log('Navigate to messages');
+            router.push('/customer/messages');
           }}
         >
           <Ionicons name="chatbubble-outline" size={24} color={sportColors.textWhite} />

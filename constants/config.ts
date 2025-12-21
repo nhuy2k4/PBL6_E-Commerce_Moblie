@@ -111,6 +111,16 @@ export const API_ENDPOINTS = {
     ANALYTICS: 'seller/analytics',
   },
 
+  // Chat
+  CHAT: {
+    CONVERSATIONS: 'conversations',
+    MY_CONVERSATIONS: 'conversations/my',
+    CONVERSATION_DETAIL: (conversationId: number) => `conversations/${conversationId}`,
+    MESSAGES_BY_CONVERSATION: (conversationId: number) => `messages/conversation/${conversationId}`,
+    MESSAGES_PAGINATED: (conversationId: number) => `messages/conversation/${conversationId}/paginated`,
+    SEND_MESSAGE: 'messages',
+  },
+
 
   // Review
   REVIEW: {
