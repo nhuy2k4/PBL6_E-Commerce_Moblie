@@ -7,6 +7,8 @@ export default function CustomerLayout() {
       <Stack.Screen name="messages" options={{ title: 'Trò chuyện' }} />
       <Stack.Screen name="OrderListPage" options={{ title: 'Đơn hàng' }} />
       <Stack.Screen name="order_detail" options={{ title: 'Chi tiết đơn hàng' }} />
+      <Stack.Screen name="return-request" options={{ title: 'Yêu cầu trả hàng' }} />
+      <Stack.Screen name="refund-detail" options={{ title: 'Chi tiết trả hàng' }} />
       <Stack.Screen name="product-by-category" options={{ title: 'Sản phẩm theo danh mục' }} />
       <Stack.Screen name="product-detail" options={{ title: 'Chi tiết sản phẩm' }} />
       <Stack.Screen name="checkout" options={{ title: 'Thanh toán' }} />

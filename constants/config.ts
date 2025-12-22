@@ -132,10 +132,12 @@ export const API_ENDPOINTS = {
   
   // Refund / Return
   REFUND: {
-    CREATE: 'refunds',
-    BY_ORDER: (orderId: number) => `refunds/order/${orderId}`,
-    DETAIL: (refundId: number) => `refunds/${refundId}`,
-    CANCEL: (refundId: number) => `refunds/${refundId}/cancel`,
+    CREATE: (orderId: number) => `refund/request/${orderId}`,
+    MY_REQUESTS: 'refund/my-requests',
+    REQUESTS: 'refund/requests',
+    DETAIL: (refundId: number) => `refund/${refundId}`,
+    MARK_RETURNING: (refundId: number) => `refund/${refundId}/mark-returning`,
+    CONFIRM_RECEIPT: (refundId: number) => `refund/confirm-receipt/${refundId}`,
   },
 
   // File upload

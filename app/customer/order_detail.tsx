@@ -18,7 +18,7 @@ import { checkReviewEligibility } from '../../services/reviewService';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadFile } from '../../services/uploadService';
-import { createRefund } from '../../services/refundService';
+import { createRefundRequest } from '../../services/refundService';
 
 interface OrderItem {
   id: number;
@@ -63,6 +63,8 @@ const OrderDetailPage = () => {
   const [refundDetail, setRefundDetail] = useState('');
   const [refundAttachments, setRefundAttachments] = useState<string[]>([]);
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [selectedRefundItemId, setSelectedRefundItemId] = useState<number | null>(null);
+  const [selectedRefundQuantity, setSelectedRefundQuantity] = useState<number>(1);
 
   useEffect(() => {
     if (id) {
@@ -243,6 +245,13 @@ const OrderDetailPage = () => {
       Alert.alert('Lỗi', 'Không thể upload ảnh');
     }
   };
+  useEffect(() => {
+    if (showRefundModal && order && order.items && order.items.length > 0) {
+      // default to first item
+      setSelectedRefundItemId(order.items[0].id);
+      setSelectedRefundQuantity(1);
+    }
+  }, [showRefundModal]);
 
   const submitRefundRequest = async () => {
     if (!order) return;
@@ -250,22 +259,34 @@ const OrderDetailPage = () => {
       Alert.alert('Lỗi', 'Vui lòng chọn lý do hoàn tiền');
       return;
     }
+    if (!selectedRefundItemId) {
+      Alert.alert('Lỗi', 'Vui lòng chọn sản phẩm cần hoàn tiền');
+      return;
+    }
+    const item = order.items.find((it) => it.id === selectedRefundItemId);
+    if (!item) {
+      Alert.alert('Lỗi', 'Sản phẩm không hợp lệ');
+      return;
+    }
+    if (selectedRefundQuantity <= 0 || selectedRefundQuantity > item.quantity) {
+      Alert.alert('Lỗi', `Số lượng hợp lệ: 1 - ${item.quantity}`);
+      return;
+    }
+
     setIsSubmittingRefund(true);
     try {
-      const items = order.items.map((it) => ({ productId: it.productId, variantId: it.variantId, quantity: it.quantity }));
       const payload = {
-        orderId: order.id,
-        items,
+        orderItemId: item.id,
         reason: refundReason,
-        detail: refundDetail,
-        attachments: refundAttachments,
-        refundMethod: 'ORIGINAL',
+        description: refundDetail,
+        quantity: selectedRefundQuantity,
+        imageUrls: refundAttachments,
+        requestedAmount: item.price * selectedRefundQuantity,
       };
-      const res = await createRefund(payload as any);
+      const res = await createRefundRequest(payload as any);
       console.log('Refund created:', res);
       Alert.alert('Gửi thành công', 'Yêu cầu hoàn tiền đã được gửi');
       setShowRefundModal(false);
-      // reload order detail to reflect changes
       await loadOrderDetail();
     } catch (error) {
       console.error('Error creating refund:', error);
@@ -473,27 +494,38 @@ const OrderDetailPage = () => {
               </View>
             </TouchableOpacity>
             
-            {/* Review Button for COMPLETED orders */}
+            {/* Action Buttons for COMPLETED orders */}
             {order.status === 'COMPLETED' && item.productId && !isNaN(item.productId) && (
-              <TouchableOpacity
-                style={[
-                  styles.reviewButton,
-                  reviewEligibility[item.productId]?.hasReviewed && styles.reviewButtonViewed
-                ]}
-                onPress={() => handleReviewProduct(item.productId)}
-              >
-                <Ionicons 
-                  name={reviewEligibility[item.productId]?.hasReviewed ? "checkmark-circle" : "star"} 
-                  size={16} 
-                  color={reviewEligibility[item.productId]?.hasReviewed ? "#4CAF50" : "#FF9800"} 
-                />
-                <Text style={[
-                  styles.reviewButtonText,
-                  reviewEligibility[item.productId]?.hasReviewed && styles.reviewButtonTextViewed
-                ]}>
-                  {reviewEligibility[item.productId]?.hasReviewed ? 'Xem đánh giá' : 'Đánh giá'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.itemActionsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.reviewButton,
+                    reviewEligibility[item.productId]?.hasReviewed && styles.reviewButtonViewed
+                  ]}
+                  onPress={() => handleReviewProduct(item.productId)}
+                >
+                  <Ionicons 
+                    name={reviewEligibility[item.productId]?.hasReviewed ? "checkmark-circle" : "star"} 
+                    size={16} 
+                    color={reviewEligibility[item.productId]?.hasReviewed ? "#4CAF50" : "#FF9800"} 
+                  />
+                  <Text style={[
+                    styles.reviewButtonText,
+                    reviewEligibility[item.productId]?.hasReviewed && styles.reviewButtonTextViewed
+                  ]}>
+                    {reviewEligibility[item.productId]?.hasReviewed ? 'Xem đánh giá' : 'Đánh giá'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Return/Refund Button */}
+                <TouchableOpacity
+                  style={styles.returnButton}
+                  onPress={() => router.push(`/customer/return-request?orderId=${order.id}&itemId=${item.id}`)}
+                >
+                  <Ionicons name="return-up-back" size={16} color="#FF6F00" />
+                  <Text style={styles.returnButtonText}>Trả hàng</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
           );
@@ -554,19 +586,6 @@ const OrderDetailPage = () => {
                 <Text style={styles.actionButtonText}>Đặt lại đơn hàng</Text>
               </>
             )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Refund Button */}
-      {(order.status === 'COMPLETED' || order.status === 'SHIPPING') && (
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.refundButton]}
-            onPress={() => setShowRefundModal(true)}
-          >
-            <Ionicons name="refund" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Yêu cầu hoàn tiền</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -814,7 +833,13 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 4,
   },
+  itemActionsContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
   reviewButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -822,7 +847,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
-    marginTop: 8,
     borderWidth: 1,
     borderColor: '#FF9800',
   },
@@ -838,6 +862,24 @@ const styles = StyleSheet.create({
   },
   reviewButtonTextViewed: {
     color: '#4CAF50',
+  },
+  returnButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF6F00',
+  },
+  returnButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6F00',
+    marginLeft: 6,
   },
   paymentRow: {
     flexDirection: 'row',
