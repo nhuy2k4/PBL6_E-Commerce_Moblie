@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, StyleSheet, ScrollView, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getMyOrders } from '../../services/orderService';
 import { getMyRefundRequests } from '../../services/refundService';
@@ -70,6 +71,14 @@ const OrderListPage = () => {
     loadRefundRequests();
   }, []);
 
+  const defaultProductImage = require('../../assets/images/icon.png');
+  const BASE_IMAGE_URL = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/images/';
+  function getImageUrl(img?: string) {
+    if (!img) return undefined;
+    if (img.startsWith('http')) return img;
+    return BASE_IMAGE_URL + img;
+  }
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -107,7 +116,7 @@ const OrderListPage = () => {
   const filteredOrders = filterOrders().sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f6fa' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f6fa' }}>
       {/* Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContainer}>
         {TABS.map((tab) => (
@@ -188,7 +197,7 @@ const OrderListPage = () => {
                 <View style={styles.orderHeader}>
                   <View style={styles.shopInfo}>
                     <Ionicons name="storefront" size={16} color="#666" />
-                    <Text style={styles.shopName}>Shop #{item.shopId || 'N/A'}</Text>
+                    <Text style={styles.shopName}>{item.shopName ? item.shopName : (item.shopId ? `Shop #${item.shopId}` : 'Shop N/A')}</Text>
                   </View>
                   <View style={[styles.statusBadge, getStatusBadgeStyle(item.status)]}>
                     <Text style={styles.statusBadgeText}>{getStatusText(item.status)}</Text>
@@ -198,11 +207,18 @@ const OrderListPage = () => {
                 {/* Product Info */}
                 {firstItem && (
                   <View style={styles.productRow}>
-                    <Image
-                      source={{ uri: firstItem.productImage || 'https://via.placeholder.com/80' }}
-                      style={styles.productImage}
-                      resizeMode="cover"
-                    />
+                    {(() => {
+                      // Fallback order similar to web: mainImage, productMainImage, image, productImage
+                      const rawImg = (firstItem as any).mainImage || (firstItem as any).productMainImage || (firstItem as any).image || firstItem.productImage;
+                      const imageUri = getImageUrl(rawImg);
+                      return (
+                        <Image
+                          source={imageUri ? { uri: imageUri } : defaultProductImage}
+                          style={styles.productImage}
+                          resizeMode="cover"
+                        />
+                      );
+                    })()}
                     <View style={styles.productInfo}>
                       <Text style={styles.productName} numberOfLines={2}>
                         {firstItem.productName}
@@ -262,7 +278,7 @@ const OrderListPage = () => {
           <Text style={{ color: '#888', fontSize: 16, marginTop: 32 }}>Không có đơn hàng nào</Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

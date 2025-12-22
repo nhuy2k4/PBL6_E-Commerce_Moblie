@@ -69,6 +69,7 @@ export const API_ENDPOINTS = {
     GET_LIST: 'orders',
     GET_BY_ID: (orderId: number) => `orders/${orderId}`,
     CANCEL: (orderId: number) => `orders/${orderId}/cancel`,
+    CONFIRM_RECEIVED: (orderId: number) => `orders/${orderId}/confirm-received`,
   },
   
   // Checkout with GHN

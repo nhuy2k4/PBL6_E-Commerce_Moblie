@@ -61,6 +61,8 @@ export interface Product {
 	rating?: number;
 	sold?: number;
 	variants?: ProductVariant[];
+	shopId?: number;
+	shop?: { id: number; name: string };
 	// Thêm các trường cho đồng bộ với web
 	mainImage?: string;
 	basePrice?: number;

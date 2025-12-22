@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getOrderDetail, cancelOrder } from '../../services/orderService';
 import { addToCart, clearCart, getCart } from '../../services/cartService';
@@ -72,12 +73,24 @@ const OrderDetailPage = () => {
     }
   }, [id]);
 
+  const defaultProductImage = require('../../assets/images/icon.png');
+  const BASE_IMAGE_URL = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/images/';
+  function getImageUrl(img?: string) {
+    if (!img) return undefined;
+    if (img.startsWith('http')) return img;
+    return BASE_IMAGE_URL + img;
+  }
+
   const loadOrderDetail = async () => {
     try {
       setLoading(true);
       const response = await getOrderDetail(Number(id));
-      console.log('📦 Order detail response:', response);
-      console.log('📦 Order items:', response.data?.items);
+      console.log('📦 Order detail response (full):', JSON.stringify(response.data, null, 2));
+      if (response.data?.items) {
+        (response.data.items as any[]).forEach((it, idx) => {
+          console.log(`🔎 item[${idx}] fields: productImage=`, it.productImage, 'mainImage=', it.mainImage, 'image=', it.image, 'productMainImage=', it.productMainImage);
+        });
+      }
       setOrder(response.data);
       
       // Check review eligibility for all items if order is COMPLETED
@@ -390,7 +403,8 @@ const OrderDetailPage = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
@@ -470,11 +484,18 @@ const OrderDetailPage = () => {
                 }
               }}
             >
-              <Image
-                source={{ uri: item.productImage }}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
+              {(() => {
+                // Use multiple fallbacks like web: mainImage, productMainImage, image, productImage
+                const rawImg = (item as any).mainImage || (item as any).productMainImage || (item as any).image || item.productImage;
+                const imageUri = getImageUrl(rawImg);
+                return (
+                  <Image
+                    source={imageUri ? { uri: imageUri } : defaultProductImage}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                );
+              })()}
               <View style={styles.itemInfo}>
                 <Text style={styles.productName} numberOfLines={2}>
                   {item.productName}
@@ -683,7 +704,8 @@ const OrderDetailPage = () => {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

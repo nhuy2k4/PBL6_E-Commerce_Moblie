@@ -74,7 +74,7 @@ export default function NewArrivalSection() {
           </View>
           <Text style={[styles.title, { color: colors.text }]}>New Arrival</Text>
         </View>
-        <TouchableOpacity onPress={() => console.log('Navigate to explore')}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/customer/product-list', params: { title: 'New Arrival' } } as any)}>
           <Text style={[styles.seeAllText, { color: colors.tint }]}>See All</Text>
         </TouchableOpacity>
       </View>

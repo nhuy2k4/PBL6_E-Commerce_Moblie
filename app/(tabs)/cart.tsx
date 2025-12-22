@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +37,26 @@ export default function CartScreen() {
         ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
+  };
+
+  const toggleShopSelection = (shopId: string) => {
+    const shopItems = items.filter(item => (item.shopId || 'unknown').toString() === shopId);
+    const shopItemIds = shopItems.map(item => item.id);
+    const allShopItemsSelected = shopItemIds.every(id => selectedItems.includes(id));
+    
+    if (allShopItemsSelected) {
+      // Unselect all items from this shop
+      setSelectedItems(prev => prev.filter(id => !shopItemIds.includes(id)));
+    } else {
+      // Select all items from this shop
+      setSelectedItems(prev => [...new Set([...prev, ...shopItemIds])]);
+    }
+  };
+
+  const isShopSelected = (shopId: string) => {
+    const shopItems = items.filter(item => (item.shopId || 'unknown').toString() === shopId);
+    const shopItemIds = shopItems.map(item => item.id);
+    return shopItemIds.length > 0 && shopItemIds.every(id => selectedItems.includes(id));
   };
 
   const toggleSelectAll = () => {
@@ -165,18 +187,38 @@ export default function CartScreen() {
 
         {/* Cart Items Grouped by Shop */}
         {Object.entries(
-          items.reduce((acc, item) => {
-            const shopKey = item.shopId || 'unknown';
+          items.reduce((acc: Record<string, { shopName: string; products: any[] }>, item) => {
+            const shopKey = String(item.shopId || 'unknown');
             if (!acc[shopKey]) acc[shopKey] = { shopName: item.shopName || 'Shop', products: [] };
             acc[shopKey].products.push(item);
             return acc;
-          }, {})
+          }, {} as Record<string, { shopName: string; products: any[] }>)
         ).map(([shopId, group]) => (
-          <View key={shopId} style={{ marginBottom: 24 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: '#FF6B35' }}>
-              {(group as any).shopName || 'Shop'}
-            </Text>
-            {(group as any).products.map((item: any) => (
+          <View key={shopId} style={styles.storeGroup}>
+            {/* Shop Header with Checkbox */}
+            <TouchableOpacity 
+              style={styles.storeHeader}
+              onPress={() => toggleShopSelection(shopId)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.storeCheckboxContainer}>
+                <View style={[
+                  styles.checkbox,
+                  isShopSelected(shopId) && styles.checkboxChecked
+                ]}>
+                  {isShopSelected(shopId) && (
+                    <Ionicons name="checkmark" size={16} color="#FFF" />
+                  )}
+                </View>
+                <Ionicons name="storefront-outline" size={18} color="#FF6B35" />
+                <Text style={styles.storeName}>
+                  {group.shopName}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Shop Products */}
+            {group.products.map((item: any) => (
               <CartItemCard
                 key={item.id}
                 item={item}
@@ -223,7 +265,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 50,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
@@ -247,18 +289,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   storeHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
   },
   storeCheckboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   storeName: {
     fontSize: 15,

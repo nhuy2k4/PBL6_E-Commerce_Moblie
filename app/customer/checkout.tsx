@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -88,7 +89,8 @@ export default function Checkout() {
           }));
           setAddresses(addressList);
           if (addressList.length > 0 && !selectedAddressId) {
-            setSelectedAddressId(addressList[0].id);
+            console.log('🏠 Auto-selecting first address:', addressList[0].id);
+            setSelectedAddressId(String(addressList[0].id));
             setShippingAddress({
               toName: addressList[0].toName,
               toPhone: addressList[0].toPhone,
@@ -114,11 +116,14 @@ export default function Checkout() {
   if (params.selectedItems) {
     try {
       checkoutItems = JSON.parse(params.selectedItems as string);
+      console.log('📦 Checkout with selectedItems from params:', checkoutItems);
     } catch (e) {
+      console.error('Failed to parse selectedItems:', e);
       checkoutItems = cartItems;
     }
   } else {
     checkoutItems = cartItems;
+    console.log('📦 Checkout with all cartItems:', checkoutItems);
   }
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -341,6 +346,8 @@ export default function Checkout() {
     let timeoutId: any;
     
     const loadGhnServices = async () => {
+      console.log('🚚 loadGhnServices called - selectedAddressId:', selectedAddressId, 'checkoutItems.length:', checkoutItems.length);
+      
       if (!selectedAddressId || checkoutItems.length === 0) {
         console.log('Skip loading GHN services - selectedAddressId:', selectedAddressId, 'checkoutItems.length:', checkoutItems.length);
         if (ghnServices.length !== 0) setGhnServices([]);
@@ -353,11 +360,13 @@ export default function Checkout() {
       try {
         const shopId = checkoutItems[0]?.shopId || 1;
         const cartItemIds = checkoutItems.map((item) => item.id);
+        console.log('🔍 Calling getAvailableServices with:', { shopId, addressId: Number(selectedAddressId), cartItemIds });
         const response = await getAvailableServices({
           shopId,
           addressId: Number(selectedAddressId),
           cartItemIds,
         });
+        console.log('✅ GHN services response:', response);
         if (isMounted && response && response.data) {
           const servicesData = response.data[0]?.services || [];
           setGhnServices(servicesData);
@@ -781,8 +790,8 @@ export default function Checkout() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.content} contentContainerStyle={{ padding: 16 }}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.content} contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
         <ShippingAddressSection
           addresses={addresses}
           selectedAddressId={selectedAddressId}
@@ -837,7 +846,7 @@ export default function Checkout() {
         handlePlaceOrder={handlePlaceOrder}
         styles={styles}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

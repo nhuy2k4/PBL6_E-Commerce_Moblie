@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import { useColorScheme } from '../../hooks/use-color-scheme';
-import { sendForgotPasswordOtp, verifyForgotPasswordOtp, resetPassword } from '../../services/authService';
+import { sendForgotPasswordOTP, verifyForgotPasswordOTP, resetPassword } from '../../services/authService';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -38,7 +38,7 @@ export default function ForgotPasswordScreen() {
     }
     setIsLoading(true);
     try {
-      const res = await sendForgotPasswordOtp({ contact });
+      const res = await sendForgotPasswordOTP(contact);
       if (res && res.status === 200) {
         Alert.alert('Success', res.message || 'OTP has been sent to ' + contact);
         setStep(2);
@@ -61,7 +61,7 @@ export default function ForgotPasswordScreen() {
     }
     setIsLoading(true);
     try {
-      const res = await verifyForgotPasswordOtp({ contact, otp });
+      const res = await verifyForgotPasswordOTP(contact, otp);
       if (res && res.status === 200) {
         Alert.alert('Success', res.message || 'OTP verified successfully');
         setStep(3);

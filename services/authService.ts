@@ -29,6 +29,11 @@ const fetchApi = async (url: string, options: RequestInit = {}) => {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
   
+  console.log('API Request:', url, options.method || 'GET');
+  if (options.body) {
+    console.log('Request body:', options.body);
+  }
+  
   const response = await fetch(url, options.body ? {
     ...options,
     headers,
@@ -37,12 +42,17 @@ const fetchApi = async (url: string, options: RequestInit = {}) => {
     headers,
   });
   
+  console.log('API Response status:', response.status, response.statusText);
+  
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Network error' }));
+    console.error('API Error response:', errorData);
     throw new Error(errorData.message || `HTTP ${response.status}`);
   }
   
-  return response.json();
+  const data = await response.json();
+  console.log('API Response data:', data);
+  return data;
 };
 
 // ==================== STORAGE ====================

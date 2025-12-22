@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { sendForgotPasswordOtp, verifyForgotPasswordOtp, resetPassword } from '../../services/authService';
+import { checkContact, verifyOTP, register } from '../../services/authService';
 
 type RegisterStep = 'contact' | 'otp' | 'info';
 
@@ -44,7 +44,7 @@ export default function RegisterScreen() {
     }
     setIsLoading(true);
     try {
-      const result = await sendForgotPasswordOtp(contact);
+      const result = await checkContact(contact);
       Alert.alert('Thành công', result.message || 'Mã OTP đã được gửi đến ' + contact);
       setStep('otp');
     } catch (error: any) {
@@ -63,10 +63,13 @@ export default function RegisterScreen() {
     }
     setIsLoading(true);
     try {
-      const result = await verifyForgotPasswordOtp(contact, otp);
+      console.log('Verifying OTP with contact:', contact, 'otp:', otp);
+      const result = await verifyOTP(contact, otp);
+      console.log('Verify OTP result:', result);
       Alert.alert('Thành công', result.message || 'Xác thực OTP thành công');
       setStep('info');
     } catch (error: any) {
+      console.error('Verify OTP error:', error);
       const errorMsg = error.message || 'Mã OTP không đúng';
       Alert.alert('Lỗi', errorMsg);
     } finally {
@@ -90,14 +93,14 @@ export default function RegisterScreen() {
     }
     setIsLoading(true);
     try {
-      const result = await resetPassword({
+      const result = await register({
         contact,
         username: formData.username,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       });
-      Alert.alert('Thành công', result.message || 'Đăng ký tài khoản thành công!', [
-        { text: 'OK', onPress: () => router.replace('/auth/login') }
+      Alert.alert('Thành công', 'Đăng ký tài khoản thành công!', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)') }
       ]);
     } catch (error: any) {
       const errorMsg = error.message || 'Đăng ký thất bại';

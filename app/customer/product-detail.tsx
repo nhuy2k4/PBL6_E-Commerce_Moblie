@@ -17,6 +17,7 @@ import { useCart } from '@/context/CartContext';
 import { Product } from '@/types';
 import { getProductById, getProductImages } from '../../services/productService';
 import { useNavigation } from '@react-navigation/native';
+import * as cartService from '../../services/cartService';
 import ReviewSection from '../../components/feature/ReviewSection';
 
 
@@ -133,6 +134,7 @@ export default function ProductDetailScreen() {
       
       const productObj = productData && productData.data ? productData.data : productData;
       console.log('Product detail object for setProduct:', productObj);
+      console.log('🏪 Product shopId:', productObj.shopId, 'shop:', productObj.shop);
       setProduct(productObj);
       
       // Try to load images (optional - product can work without it)
@@ -336,7 +338,41 @@ export default function ProductDetailScreen() {
         return;
       }
       
+      // Add to server cart and refresh local cart (addToCart calls refreshCart)
       await addToCart(variantId, quantity);
+
+      // Try to fetch the updated cart and find the newly added cart item
+      try {
+        const freshCart = await cartService.getCart();
+        const items = freshCart?.items || [];
+
+        // Find item by several possible product variant id fields returned by backend
+        const addedItem = items.find((it: any) =>
+          it.productVariantId === variantId || it.productId === variantId || it.variantId === variantId || (it.productVariant && it.productVariant.id === variantId)
+        );
+
+        if (addedItem) {
+          // Ensure shopId is present - extract from product if missing
+          if (!addedItem.shopId && product?.shopId) {
+            addedItem.shopId = product.shopId;
+          }
+          if (!addedItem.shopName && product?.shop?.name) {
+            addedItem.shopName = product.shop.name;
+          }
+          
+          console.log('🛒 Buy Now - navigating to checkout with item:', addedItem);
+          
+          router.push({
+            pathname: '/customer/checkout',
+            params: { selectedItems: JSON.stringify([addedItem]) },
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not fetch fresh cart for Buy Now fallback:', err);
+      }
+
+      // Fallback to opening checkout (will use full cart)
       router.push('/customer/checkout');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to add to cart');

@@ -76,7 +76,7 @@ export default function ProductExplorer() {
             Explore Our Products
           </Text>
         </View>
-        <TouchableOpacity onPress={() => console.log('Navigate to explore')}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/customer/product-list', params: { title: 'Explore Our Products' } } as any)}>
           <Text style={[styles.seeAllText, { color: colors.tint }]}>See All</Text>
         </TouchableOpacity>
       </View>

@@ -116,7 +116,7 @@ export default function FlashSaleSection() {
           </View>
           <Text style={[styles.title, { color: colors.text }]}>Flash Sales</Text>
         </View>
-        <TouchableOpacity onPress={() => console.log('Navigate to explore')}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/customer/product-list', params: { title: 'Flash Sales' } } as any)}>
           <Text style={[styles.seeAllText, { color: colors.tint }]}>See All</Text>
         </TouchableOpacity>
       </View>
