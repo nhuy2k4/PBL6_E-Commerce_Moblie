@@ -323,7 +323,10 @@ export default function ProductDetailScreen() {
       await addToCart(variantId, quantity);
       Alert.alert('Success', `${product?.name} added to cart!`);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add to cart');
+        if (error?.message?.includes('User not logged in')) {
+        router.replace('/auth/login');
+        return;
+      }
     }
   };
 
@@ -375,7 +378,10 @@ export default function ProductDetailScreen() {
       // Fallback to opening checkout (will use full cart)
       router.push('/customer/checkout');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add to cart');
+        if (error?.message?.includes('User not logged in')) {
+        router.replace('/auth/login');
+        return;
+      }
     }
   };
 
@@ -672,9 +678,11 @@ export default function ProductDetailScreen() {
       {/* Bottom Action Buttons */}
       <View style={styles.bottomActions}>
         <TouchableOpacity
-          style={styles.addToCartButton}
+          style={[styles.addToCartButton, { backgroundColor: '#1976D2', borderColor: '#1976D2' }]}
           onPress={handleAddToCart}
         >
+          <Ionicons name="cart" size={20} color="#FFF" />
+          <Text style={[styles.addToCartText, { color: '#FFF' }]}>Add to Cart</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.buyNowButton}

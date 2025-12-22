@@ -349,15 +349,21 @@ export async function unregisterFCMToken(apiUrl: string): Promise<boolean> {
 function handleNotificationTap(data: any, router?: any) {
   console.log('👆 Handling notification tap with data:', data);
   
-  if (!data || !router) return;
+  if (!data) return;
 
-  const { orderId, type } = data;
+  // Always emit notification to app (so notification context can save it)
+  fcmEventEmitter.emit('notification', {
+    message: data.body || data.title || 'Thông báo',
+    ...data,
+    timestamp: Date.now(),
+  });
 
-  if (orderId) {
-    console.log('📍 Navigating to order:', orderId);
-    // Implement your navigation logic here
-    // Example: router.push(`/order/${orderId}`);
+  if (router && data.orderId) {
+    console.log('📍 Navigating to order:', data.orderId);
+    router.push({ pathname: '/customer/order_detail', params: { id: data.orderId } });
+    return;
   }
+  // You can add more navigation logic for other notification types here
 }
 
 /**
@@ -385,9 +391,8 @@ export async function setupFCMHandlers(router?: any): Promise<(() => void) | nul
         // This allows the notification tab to catch and display it
         console.log('🔔 Emitting FCM notification to app:', notification.title);
         fcmEventEmitter.emit('notification', {
-          title: notification.title || 'Thông báo',
-          body: notification.body || '',
-          data: data || {},
+          message: notification.body || notification.title || 'Thông báo',
+          ...data,
           timestamp: Date.now(),
         });
       }

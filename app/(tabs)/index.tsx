@@ -29,11 +29,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace('/auth/login');
-    }
-  }, [user, isLoading]);
+  // Đã bỏ redirect sang login, cho phép vào home khi chưa đăng nhập
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -45,9 +41,6 @@ export default function HomeScreen() {
 
   // Nếu đang kiểm tra đăng nhập thì không render gì
   if (isLoading) return null;
-
-  // Nếu chưa đăng nhập thì sẽ bị redirect, không render Home
-  if (!user) return null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 

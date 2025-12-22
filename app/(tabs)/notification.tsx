@@ -16,9 +16,17 @@ import { useNotification } from '@/context/NotificationContext';
 import NotificationItem from '@/components/NotificationItem';
 
 export default function NotificationScreen() {
+  const { user, isLoading } = useAuth();
+  const router = require('expo-router').useRouter();
+  React.useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, isLoading]);
+  if (isLoading) return null;
+  if (!user) return null;
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { user } = useAuth();
   
   // Debug logging
   React.useEffect(() => {
@@ -48,7 +56,10 @@ export default function NotificationScreen() {
     if (!notif.read) {
       markAsRead(notif.id);
     }
-    // TODO: Navigate to order detail screen if needed
+    // Navigate to order detail screen if orderId exists
+    if (notif.orderId) {
+      router.push({ pathname: '/customer/order_detail', params: { id: notif.orderId } });
+    }
   };
 
   const handleMarkAllRead = () => {

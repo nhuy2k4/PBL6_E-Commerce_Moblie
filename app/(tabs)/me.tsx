@@ -88,6 +88,10 @@ export default function ProfileScreen() {
   };
 
   const handleMenuPress = (itemId: string) => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
     switch (itemId) {
       case 'orders':
         router.push('/customer/OrderListPage');

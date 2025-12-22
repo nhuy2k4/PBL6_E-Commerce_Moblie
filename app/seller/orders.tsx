@@ -3,6 +3,9 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, 
 // import { useRouter } from 'expo-router';
 import { getSellerOrders, updateOrderStatus, getSellerOrderDetail } from '../../services/sellerOrderService';
 
+const BASE_IMAGE_URL = process.env.EXPO_PUBLIC_BASE_IMAGE_URL;
+const defaultProductImage = require('../../assets/images/icon.png');
+
 const TABS = [
   { key: 'ALL', label: 'Tất cả', color: '#6c757d' },
   { key: 'PENDING', label: 'Chờ xác nhận', color: '#ffc107' },
@@ -40,7 +43,15 @@ const SellerOrders = () => {
       console.log('🔄 Loading seller orders...');
       const data = await getSellerOrders();
       console.log('📦 Seller orders data received:', data);
-      setOrders(Array.isArray(data) ? data : data?.data || []);
+      const ordersArr = Array.isArray(data) ? data : data?.data || [];
+      if (ordersArr && Array.isArray(ordersArr)) {
+        ordersArr.forEach((order, idx) => {
+          console.log(`🟢 Order[${idx}] id=${order.id} items=`, order.items);
+        });
+      } else {
+        console.log('⚠️ ordersArr is not array:', ordersArr);
+      }
+      setOrders(ordersArr);
     } catch (error) {
       console.error('❌ Load seller orders error:', error);
       setOrders([]);
@@ -141,7 +152,14 @@ const SellerOrders = () => {
     }));
   };
 
+  function getImageUrl(img?: string) {
+    if (!img) return undefined;
+    if (img.startsWith('http')) return img;
+    return BASE_IMAGE_URL + img;
+  }
+
   return (
+
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -157,12 +175,12 @@ const SellerOrders = () => {
             style={[styles.tab, activeTab === tab.key && { backgroundColor: tab.color }]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[styles.tabText, { color: activeTab === tab.key ? '#fff' : tab.color }]}>
+            <Text style={[styles.tabText, { color: activeTab === tab.key ? '#fff' : tab.color }]}> 
               {tab.label}
             </Text>
             {tab.count > 0 && (
-              <View style={[styles.badge, { backgroundColor: activeTab === tab.key ? '#fff' : tab.color }]}>
-                <Text style={[styles.badgeText, { color: activeTab === tab.key ? tab.color : '#fff' }]}>
+              <View style={[styles.badge, { backgroundColor: activeTab === tab.key ? '#fff' : tab.color }]}> 
+                <Text style={[styles.badgeText, { color: activeTab === tab.key ? tab.color : '#fff' }]}> 
                   {tab.count}
                 </Text>
               </View>
@@ -194,27 +212,63 @@ const SellerOrders = () => {
           }
           renderItem={({ item }) => {
             const actions = getOrderActions(item);
+            // Get first product image from order items (fallback: mainImage, productMainImage, image, productImage)
+            let firstImg;
+            let productCount = 0;
+            if (item.items && item.items.length > 0) {
+              const prod = item.items[0];
+              firstImg = prod.mainImage || prod.productMainImage || prod.image || prod.productImage;
+              productCount = item.items.length;
+            }
+            console.log('Order', item.id, 'has', productCount, 'products');
+            const imageUri = getImageUrl(firstImg);
             return (
               <TouchableOpacity 
                 style={styles.orderCard}
                 onPress={() => loadOrderDetail(item.id)}
               >
-                <View style={styles.orderHeader}>
-                  <Text style={styles.orderCode}>Mã đơn: #{item.id}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                    <Text style={styles.statusText}>
-                      {TABS.find(t => t.key === item.status)?.label || item.status}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ position: 'relative' }}>
+                    <Image
+                      source={imageUri ? { uri: imageUri } : defaultProductImage}
+                      style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0' }}
+                      resizeMode="cover"
+                    />
+                    {productCount > 1 && (
+                      <View style={{
+                        position: 'absolute',
+                        bottom: 4,
+                        right: 4,
+                        backgroundColor: '#e53935', // red for visibility
+                        borderRadius: 10,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        minWidth: 24,
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: '#fff',
+                      }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>+{productCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.orderHeader}>
+                      <Text style={styles.orderCode}>Mã đơn: #{item.id}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}> 
+                        <Text style={styles.statusText}>
+                          {TABS.find(t => t.key === item.status)?.label || item.status}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.orderTotal}>
+                      Tổng tiền: {(item.totalAmount || 0).toLocaleString('vi-VN')} đ
+                    </Text>
+                    <Text style={styles.orderDate}>
+                      Ngày đặt: {new Date(item.createdAt || new Date()).toLocaleString('vi-VN')}
                     </Text>
                   </View>
                 </View>
-                
-                <Text style={styles.orderTotal}>
-                  Tổng tiền: {(item.totalAmount || 0).toLocaleString('vi-VN')} đ
-                </Text>
-                
-                <Text style={styles.orderDate}>
-                  Ngày đặt: {new Date(item.createdAt || new Date()).toLocaleString('vi-VN')}
-                </Text>
 
                 {/* Action Buttons */}
                 {actions.length > 0 && (
@@ -319,32 +373,34 @@ const SellerOrders = () => {
               {/* Products */}
               <View style={styles.infoSection}>
                 <Text style={styles.sectionTitle}>Sản phẩm ({selectedOrder.items?.length || 0})</Text>
-                {(selectedOrder.items || []).map((item: any, index: number) => (
-                  <View key={index} style={styles.productItem}>
-                    {item.productImage && (
+                {(selectedOrder.items || []).map((item: any, index: number) => {
+                  const rawImg = (item as any).mainImage || (item as any).productMainImage || (item as any).image || item.productImage;
+                  const imageUri = getImageUrl(rawImg);
+                  return (
+                    <View key={index} style={styles.productItem}>
                       <Image 
-                        source={{ uri: item.productImage }} 
+                        source={imageUri ? { uri: imageUri } : defaultProductImage}
                         style={styles.productImage}
                         resizeMode="cover"
                       />
-                    )}
-                    <View style={styles.productInfo}>
-                      <Text style={styles.productName}>{item.productName}</Text>
-                      {item.variantName && (
-                        <Text style={styles.variantName}>Phân loại: {item.variantName}</Text>
-                      )}
-                      <View style={styles.productPriceRow}>
-                        <Text style={styles.productPrice}>
-                          {(item.price || 0).toLocaleString('vi-VN')} đ
+                      <View style={styles.productInfo}>
+                        <Text style={styles.productName}>{item.productName}</Text>
+                        {item.variantName && (
+                          <Text style={styles.variantName}>Phân loại: {item.variantName}</Text>
+                        )}
+                        <View style={styles.productPriceRow}>
+                          <Text style={styles.productPrice}>
+                            {(item.price || 0).toLocaleString('vi-VN')} đ
+                          </Text>
+                          <Text style={styles.productQuantity}>x{item.quantity}</Text>
+                        </View>
+                        <Text style={styles.productSubtotal}>
+                          Tổng: {(item.subtotal || 0).toLocaleString('vi-VN')} đ
                         </Text>
-                        <Text style={styles.productQuantity}>x{item.quantity}</Text>
                       </View>
-                      <Text style={styles.productSubtotal}>
-                        Tổng: {(item.subtotal || 0).toLocaleString('vi-VN')} đ
-                      </Text>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
 
               {/* Total */}

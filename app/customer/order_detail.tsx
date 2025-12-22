@@ -74,7 +74,8 @@ const OrderDetailPage = () => {
   }, [id]);
 
   const defaultProductImage = require('../../assets/images/icon.png');
-  const BASE_IMAGE_URL = 'https://nikolas-unstrenuous-augustus.ngrok-free.dev/images/';
+
+const BASE_IMAGE_URL = process.env.EXPO_PUBLIC_BASE_IMAGE_URL;
   function getImageUrl(img?: string) {
     if (!img) return undefined;
     if (img.startsWith('http')) return img;

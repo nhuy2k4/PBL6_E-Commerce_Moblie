@@ -11,6 +11,7 @@ interface NotificationItemProps {
     orderId?: number;
     read: boolean;
     timestamp: number;
+    payload?: any;
   };
   onDelete: (id: string) => void;
   onPress: (notification: any) => void;
@@ -73,7 +74,10 @@ export default function NotificationItem({ notification, onDelete, onPress, colo
               : colors.tint + '10',
           },
         ]}
-        onPress={() => onPress(notification)}
+        onPress={() => {
+          console.log('🔔 TouchableOpacity pressed:', notification);
+          onPress(notification);
+        }}
       >
         <View style={[styles.iconContainer, { backgroundColor: colors.tint + '20' }]}>
           <Ionicons
@@ -86,12 +90,13 @@ export default function NotificationItem({ notification, onDelete, onPress, colo
           <Text style={[styles.message, { color: colors.text, fontWeight: '600' }]}>
             {notification.message}
           </Text>
+          {/* ...existing code... */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
             <Text style={[styles.time, { color: colors.icon }]}>
               {formatTime(notification.timestamp)}
             </Text>
             {notification.type && (
-              <Text style={[styles.type, { color: colors.icon }]}>
+              <Text style={[styles.type, { color: colors.icon }]}> 
                 {' • '}{notification.type}
               </Text>
             )}
@@ -145,6 +150,10 @@ const styles = StyleSheet.create({
   },
   type: {
     fontSize: 12,
+  },
+  sourceLabel: {
+    fontSize: 12,
+    marginTop: 2,
   },
   unreadDot: {
     width: 8,

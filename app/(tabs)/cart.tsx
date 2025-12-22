@@ -18,7 +18,15 @@ import { useCart } from '@/context/CartContext';
 import { CartItemCard } from '@/components/feature/cart/CartItemCard';
 
 export default function CartScreen() {
+  const { user, isLoading } = require('@/context/AuthContext').useAuth();
   const router = useRouter();
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, isLoading]);
+  if (isLoading) return null;
+  if (!user) return null;
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { items, getTotalPrice, loading, clearCart } = useCart();

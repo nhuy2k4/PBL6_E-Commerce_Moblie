@@ -6,11 +6,15 @@ import {
   StyleSheet, 
   Alert, 
   TouchableOpacity, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 // import { useRouter } from 'expo-router';
 import { getSellerOrderDetail, updateOrderStatus } from '../../../services/sellerOrderService';
+
+const BASE_IMAGE_URL = process.env.EXPO_PUBLIC_BASE_IMAGE_URL;
+const defaultProductImage = require('../../../assets/images/icon.png');
 
 type OrderDetailType = {
   id: number;
@@ -126,6 +130,12 @@ const SellerOrderDetail = () => {
     }
   };
 
+  function getImageUrl(img?: string) {
+    if (!img) return undefined;
+    if (img.startsWith('http')) return img;
+    return BASE_IMAGE_URL + img;
+  }
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -219,24 +229,33 @@ const SellerOrderDetail = () => {
       {/* Order Items */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Sản phẩm đã đặt</Text>
-        {order.items.map((item, index) => (
-          <View key={index} style={styles.itemCard}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>
-                {item.productName || `Sản phẩm #${item.productId}`}
-              </Text>
-              {item.variantName && (
-                <Text style={styles.itemVariant}>{item.variantName}</Text>
-              )}
-              <Text style={styles.itemDetails}>
-                Số lượng: {item.quantity} × {item.price.toLocaleString('vi-VN')} đ
-              </Text>
+        {order.items.map((item, index) => {
+          const rawImg = (item as any).mainImage || (item as any).productMainImage || (item as any).image || (item as any).productImage;
+          const imageUri = getImageUrl(rawImg);
+          return (
+            <View key={index} style={styles.itemCard}>
+              <Image 
+                source={imageUri ? { uri: imageUri } : defaultProductImage}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>
+                  {item.productName || `Sản phẩm #${item.productId}`}
+                </Text>
+                {item.variantName && (
+                  <Text style={styles.itemVariant}>{item.variantName}</Text>
+                )}
+                <Text style={styles.itemDetails}>
+                  Số lượng: {item.quantity} × {item.price.toLocaleString('vi-VN')} đ
+                </Text>
+                <Text style={styles.itemTotal}>
+                  {(item.totalPrice || item.quantity * item.price).toLocaleString('vi-VN')} đ
+                </Text>
+              </View>
             </View>
-            <Text style={styles.itemTotal}>
-              {(item.totalPrice || item.quantity * item.price).toLocaleString('vi-VN')} đ
-            </Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       {/* Action Buttons */}
@@ -340,6 +359,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+    gap: 12,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
   itemInfo: {
     flex: 1,

@@ -6,6 +6,7 @@ import SellerOrders from '../app/seller/orders';
 import SellerVouchers from '../app/seller/vouchers';
 import SellerCustomers from '../app/seller/customers';
 import SellerRevenue from '../app/seller/statistical';
+import SellerNotifications from '../app/seller/notifications';
 
 const SellerStack = createStackNavigator();
 
@@ -32,6 +33,11 @@ export default function SellerNavigator() {
         name="SellerProducts" 
         component={SellerProducts} 
         options={{ title: 'Quản Lý Sản Phẩm' }} 
+      />
+      <SellerStack.Screen 
+        name="SellerNotifications" 
+        component={SellerNotifications} 
+        options={{ title: 'Thông báo' }} 
       />
       <SellerStack.Screen 
         name="SellerOrders" 

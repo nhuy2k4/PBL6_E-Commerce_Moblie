@@ -7,6 +7,13 @@ const SellerDashboard = () => {
 
   const menuItems = [
     {
+      title: 'Thông báo',
+      description: 'Xem thông báo dành cho shop',
+      icon: '🔔',
+      screen: 'SellerNotifications',
+      color: '#FF6B6B',
+    },
+    {
       title: 'Sản phẩm',
       description: 'Quản lý sản phẩm của shop',
       icon: '📦',

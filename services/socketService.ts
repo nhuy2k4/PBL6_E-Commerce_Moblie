@@ -31,9 +31,23 @@ export async function connectNotificationSocket({ userId, role = 'BUYER', onNoti
     console.log('⚠️ No userId provided, skipping WebSocket connection');
     return;
   }
+  // determine channel early so reconnect logic can compare properly
+  const channelMap: { [key: string]: string } = {
+    BUYER: `/topic/orderws/${userId}`,
+    SELLER: `/topic/sellerws/${userId}`,
+    ADMIN: `/topic/admin/${userId}`,
+  };
+  const channel = channelMap[(role || 'BUYER').toUpperCase()] || `/topic/orderws/${userId}`;
+
   if (stompClient) {
-    console.log('⚠️ Socket already connected, skipping');
-    return;
+    // If already connected to the same channel, skip
+    if (currentChannel && currentChannel === channel) {
+      console.log('⚠️ Socket already connected to channel, skipping');
+      return;
+    }
+    // If connected but channel differs, disconnect and reconnect to correct channel
+    console.log('⚠️ Socket connected to different channel, reconnecting to correct channel');
+    disconnectNotificationSocket();
   }
   console.log(`🔌 [${role}] Attempting to connect WebSocket for user: ${userId}`);
   onNotificationCallback = onNotification;
@@ -54,8 +68,7 @@ export async function connectNotificationSocket({ userId, role = 'BUYER', onNoti
   console.log(`🔑 Token found: ${authToken.substring(0, 20)}...`);
   const baseUrl = API_CONFIG.BASE_URL.replace(/\/api\/?$/, '');
   const sockJsUrl = `${baseUrl}/ws?token=${authToken}`;
-  const channel = `/topic/orderws/${userId}`;
-  
+
   console.log(`🔌 WebSocket URL: ${baseUrl}/ws?token=***`);
   console.log(`📡 Will subscribe to channel: ${channel}`);
   stompClient = new Client({
@@ -71,6 +84,8 @@ export async function connectNotificationSocket({ userId, role = 'BUYER', onNoti
       isConnected = true;
       if (onConnectionChange) onConnectionChange(true);
       console.log(`📡 Subscribing to channel: ${channel}`);
+      // remember current channel
+      currentChannel = channel;
       stompClient.subscribe(channel, async (message) => {
         console.log(`📬 [${clientId}] Received notification message`);
         try {
@@ -83,6 +98,10 @@ export async function connectNotificationSocket({ userId, role = 'BUYER', onNoti
             read: false,
             timestamp: notification.timestamp || Date.now(),
             receivedAt: new Date().toISOString(),
+            // preserve full payload for consumers to inspect and filter
+            payload: notification,
+            // include channel to help client-side filtering
+            channel,
           };
           if (onNotificationCallback) onNotificationCallback(newNotification);
           // Không hiển thị local notification nữa, chỉ cập nhật vào context
