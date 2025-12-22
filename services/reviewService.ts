@@ -207,3 +207,75 @@ export async function uploadReviewImages(formData: FormData): Promise<any> {
 }
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/**
+ * Get all reviews for seller's shop (grouped by replied/unreplied)
+ */
+export async function getShopReviews(): Promise<{
+  replied: Review[];
+  unreplied: Review[];
+}> {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập');
+    }
+
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}my-shop/reviews/all`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Không thể tải danh sách đánh giá');
+    }
+
+    const result = await response.json();
+    return result.data || { replied: [], unreplied: [] };
+  } catch (error) {
+    console.error('Error fetching shop reviews:', error);
+    throw error;
+  }
+}
+
+/**
+ * Seller reply to a review
+ */
+export async function replyToReview(reviewId: number, sellerResponse: string): Promise<any> {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập');
+    }
+
+    const response = await fetch(
+      `${API_CONFIG.BASE_URL}reviews/${reviewId}/reply`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({ sellerResponse }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Không thể gửi phản hồi');
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error replying to review:', error);
+    throw error;
+  }
+}

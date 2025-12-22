@@ -23,7 +23,19 @@ export default function AddressesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAddresses();
+      let isMounted = true;
+      
+      const fetchData = async () => {
+        if (isMounted) {
+          await loadAddresses();
+        }
+      };
+      
+      fetchData();
+      
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -31,9 +43,14 @@ export default function AddressesScreen() {
     try {
       setLoading(true);
       const data = await getAddresses();
-      setAddresses(data);
+      setAddresses(data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load addresses');
+      console.error('Load addresses error:', error);
+      setAddresses([]);
+      // Only show alert if it's not a network error during unmount
+      if (error.message && !error.message.includes('Network')) {
+        Alert.alert('Error', error.message || 'Failed to load addresses');
+      }
     } finally {
       setLoading(false);
     }

@@ -44,11 +44,19 @@ export async function getAddresses(): Promise<Address[]> {
  * POST /api/me/addresses
  */
 export async function addAddress(address: Omit<Address, 'id' | 'createdAt'>): Promise<Address> {
-  return await fetchPrivate('/me/addresses', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(address)
-  });
+  try {
+    console.log('📍 Adding address:', address);
+    const result = await fetchPrivate('/me/addresses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(address)
+    });
+    console.log('📍 Address added successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('📍 Add address error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -56,11 +64,19 @@ export async function addAddress(address: Omit<Address, 'id' | 'createdAt'>): Pr
  * PUT /api/me/addresses/{id}
  */
 export async function updateAddress(addressId: number, address: Omit<Address, 'id' | 'createdAt'>): Promise<Address> {
-  return await fetchPrivate(`/me/addresses/${addressId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(address)
-  });
+  try {
+    console.log('📍 Updating address:', addressId, address);
+    const result = await fetchPrivate(`/me/addresses/${addressId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(address)
+    });
+    console.log('📍 Address updated successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('📍 Update address error:', error);
+    throw error;
+  }
 }
 
 /**

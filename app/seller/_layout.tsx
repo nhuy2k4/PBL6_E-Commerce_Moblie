@@ -9,6 +9,7 @@ export default function SellerLayout() {
       <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="vouchers" options={{ headerShown: false }} />
       <Stack.Screen name="statistical" options={{ headerShown: false }} />
+      <Stack.Screen name="reviews" options={{ headerShown: false }} />
     </Stack>
   );
 }

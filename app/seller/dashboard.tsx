@@ -28,6 +28,13 @@ const SellerDashboard = () => {
       color: '#FF9800',
     },
     {
+      title: 'Đánh giá',
+      description: 'Xem và phản hồi đánh giá',
+      icon: '⭐',
+      screen: 'SellerReviews',
+      color: '#FFB800',
+    },
+    {
       title: 'Khách hàng',
       description: 'Xem khách hàng top',
       icon: '👥',

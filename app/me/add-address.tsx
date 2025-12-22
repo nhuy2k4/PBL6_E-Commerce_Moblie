@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ export default function AddEditAddressScreen() {
   const params = useLocalSearchParams();
   const addressId = params.id ? Number(params.id) : null;
   const isEditing = !!addressId;
+  const isMounted = useRef(true);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,6 +33,7 @@ export default function AddEditAddressScreen() {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [primaryAddress, setPrimaryAddress] = useState(false);
+  const [initialPrimaryStatus, setInitialPrimaryStatus] = useState(false);
 
   // Location data
   const [provinces, setProvinces] = useState<any[]>([]);
@@ -43,10 +45,14 @@ export default function AddEditAddressScreen() {
   const [selectedWardCode, setSelectedWardCode] = useState<string>('');
 
   useEffect(() => {
+    isMounted.current = true;
     loadProvinces();
     if (isEditing) {
       loadAddress();
     }
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -98,15 +104,53 @@ export default function AddEditAddressScreen() {
       const addresses = await getAddresses();
       const address = addresses.find((a) => a.id === addressId);
       if (address) {
-        setFullAddress(address.fullAddress);
+        // Tách streetAddress từ fullAddress (lấy phần trước dấu phẩy đầu tiên)
+        let streetAddress = address.fullAddress || '';
+        if (streetAddress.includes(',')) {
+          streetAddress = streetAddress.split(',')[0].trim();
+        }
+        
+        setFullAddress(streetAddress);
         setContactName(address.contactName);
         setContactPhone(address.contactPhone);
         setPrimaryAddress(address.primaryAddress);
-        setSelectedProvinceId(address.provinceId);
-        setSelectedDistrictId(address.districtId);
-        setSelectedWardCode(address.wardCode);
+        setInitialPrimaryStatus(address.primaryAddress); // Track initial status
+        
+        // Load location data theo thứ tự: province -> districts -> wards
+        const provinceId = address.provinceId;
+        const districtId = address.districtId;
+        const wardCode = address.wardCode;
+        
+        console.log('Loading address with location:', { provinceId, districtId, wardCode });
+        
+        if (provinceId) {
+          setSelectedProvinceId(provinceId);
+          // Load districts for this province
+          try {
+            const districtData = await getDistricts(provinceId);
+            setDistricts(districtData || []);
+            
+            if (districtId) {
+              setSelectedDistrictId(districtId);
+              // Load wards for this district
+              try {
+                const wardData = await getWards(districtId);
+                setWards(wardData || []);
+                
+                if (wardCode) {
+                  setSelectedWardCode(wardCode);
+                }
+              } catch (err) {
+                console.error('Failed to load wards for edit:', err);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to load districts for edit:', err);
+          }
+        }
       }
     } catch (error: any) {
+      console.error('Load address error:', error);
       Alert.alert('Error', error.message || 'Failed to load address');
     } finally {
       setLoading(false);
@@ -148,33 +192,91 @@ export default function AddEditAddressScreen() {
     const selectedDistrict = districts.find((d) => d.DistrictID === selectedDistrictId);
     const selectedWard = wards.find((w) => w.WardCode === selectedWardCode);
 
+    // Ghép fullAddress từ streetAddress + ward + district + province
+    const provinceName = selectedProvince?.ProvinceName || '';
+    const districtName = selectedDistrict?.DistrictName || '';
+    const wardName = selectedWard?.WardName || '';
+    const street = fullAddress.trim();
+    
+    let completeAddress = street;
+    if (wardName) completeAddress += ', ' + wardName;
+    if (districtName) completeAddress += ', ' + districtName;
+    if (provinceName) completeAddress += ', ' + provinceName;
+
     const addressData: Omit<Address, 'id' | 'createdAt'> = {
-      fullAddress: fullAddress.trim(),
+      fullAddress: completeAddress,
       provinceId: selectedProvinceId,
       districtId: selectedDistrictId,
       wardCode: selectedWardCode,
-      provinceName: selectedProvince?.ProvinceName || '',
-      districtName: selectedDistrict?.DistrictName || '',
-      wardName: selectedWard?.WardName || '',
+      provinceName: provinceName,
+      districtName: districtName,
+      wardName: wardName,
       contactName: contactName.trim(),
       contactPhone: contactPhone.trim(),
       primaryAddress,
     };
 
+    console.log('Saving address:', addressData);
+
     try {
       setSaving(true);
-      if (isEditing) {
-        await updateAddress(addressId, addressData);
-        Alert.alert('Success', 'Address updated successfully');
-      } else {
-        await addAddress(addressData);
-        Alert.alert('Success', 'Address added successfully');
+      
+      let success = false;
+      let errorMsg = '';
+      
+      try {
+        if (isEditing) {
+          console.log('Updating address with ID:', addressId);
+          await updateAddress(addressId, addressData);
+          console.log('Update address completed');
+          success = true;
+        } else {
+          console.log('Adding new address');
+          await addAddress(addressData);
+          console.log('Add address completed');
+          success = true;
+        }
+      } catch (error: any) {
+        console.error('Save address error:', error);
+        errorMsg = error.message || 'Failed to save address';
+        success = false;
       }
-      router.back();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save address');
-    } finally {
+      
+      if (!isMounted.current) {
+        console.log('Component unmounted, skipping navigation');
+        return;
+      }
+      
       setSaving(false);
+      
+      if (success) {
+        console.log('Address saved successfully, navigating back...');
+        // Use setTimeout to ensure state updates are complete
+        setTimeout(() => {
+          try {
+            if (router.canGoBack()) {
+              console.log('Navigating back');
+              router.back();
+            } else {
+              console.log('Cannot go back, replacing with /me/addresses');
+              router.replace('/me/addresses');
+            }
+          } catch (navError) {
+            console.error('Navigation error:', navError);
+            // Fallback: force replace
+            router.replace('/me/addresses');
+          }
+        }, 100);
+      } else {
+        console.error('Failed to save address:', errorMsg);
+        Alert.alert('Error', errorMsg);
+      }
+    } catch (error: any) {
+      console.error('Unexpected error in handleSave:', error);
+      if (isMounted.current) {
+        setSaving(false);
+        Alert.alert('Error', 'An unexpected error occurred: ' + (error.message || 'Unknown'));
+      }
     }
   };
 
@@ -296,7 +398,7 @@ export default function AddEditAddressScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Address *</Text>
+              <Text style={styles.label}>Street Address *</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={fullAddress}
@@ -311,17 +413,26 @@ export default function AddEditAddressScreen() {
 
           {/* Settings */}
           <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setPrimaryAddress(!primaryAddress)}
-            >
-              <Ionicons
-                name={primaryAddress ? 'checkbox' : 'square-outline'}
-                size={24}
-                color={primaryAddress ? '#FF6B35' : '#999'}
-              />
-              <Text style={styles.checkboxLabel}>Set as primary address</Text>
-            </TouchableOpacity>
+            {!initialPrimaryStatus && (
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setPrimaryAddress(!primaryAddress)}
+                disabled={saving}
+              >
+                <Ionicons
+                  name={primaryAddress ? 'checkbox' : 'square-outline'}
+                  size={24}
+                  color={primaryAddress ? '#FF6B35' : '#999'}
+                />
+                <Text style={styles.checkboxLabel}>Set as primary address</Text>
+              </TouchableOpacity>
+            )}
+            {initialPrimaryStatus && (
+              <View style={styles.primaryBadgeInfo}>
+                <Ionicons name="star" size={20} color="#FF6B35" />
+                <Text style={styles.primaryBadgeText}>This is your primary address</Text>
+              </View>
+            )}
           </View>
 
           {/* Save Button */}
@@ -434,6 +545,21 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 15,
     color: '#1A1A1A',
+  },
+  primaryBadgeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  primaryBadgeText: {
+    fontSize: 15,
+    color: '#FF6B35',
+    fontWeight: '600',
   },
   saveButton: {
     backgroundColor: '#FF6B35',
