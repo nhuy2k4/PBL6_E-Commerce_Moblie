@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "617608719232",
+    "project_id": "pbl6-ecommerce",
+    "storage_bucket": "pbl6-ecommerce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:617608719232:android:412a78f5dd1e2a0f6b6f65",
+        "android_client_info": {
+          "package_name": "com.pbl6.ecommercemobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0bOeC4Cx5p5sFrZOn7XlzzICM9LJ673Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
