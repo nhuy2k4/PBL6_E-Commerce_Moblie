@@ -18,7 +18,9 @@
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["pbl6ecommercemobile"]
+            "CFBundleURLSchemes": [
+              "pbl6ecommercemobile"
+            ]
           }
         ]
       }
@@ -39,7 +41,10 @@
               "scheme": "pbl6ecommercemobile"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -67,6 +72,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fa5ca8c4-33d3-414d-a126-241fd2a1a862"
+      }
     }
   }
 }
